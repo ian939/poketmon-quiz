@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#D5372A">
+<meta name="description" content="힌트를 읽고 포켓몬 이름을 맞혀 전국도감 802칸을 채우는 읽기 연습 게임.">
+<title>포켓몬 도감 퀴즈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header id="masthead">
+  <span class="mast-mark" aria-hidden="true"></span>
+  <h1 class="mast-title" id="mast-title">포켓몬 도감 퀴즈</h1>
+  <button class="mast-btn" id="btn-sound">소리 끄기</button>
+  <button class="mast-btn is-hidden" id="btn-back">처음으로</button>
+</header>
+
+<main id="screens">
+
+  <!-- ============ 홈 ============ -->
+  <section class="screen is-on" id="screen-home">
+    <div class="scroll">
+
+      <div class="hero">
+        <p class="hero-eyebrow">전국도감 001 — 802</p>
+        <h2 class="hero-title">빈 칸을<br>채우자</h2>
+        <div class="mosaic" id="mosaic" aria-label="도감 802칸 진행 상황"></div>
+        <p class="hero-caption" id="mosaic-caption"></p>
+      </div>
+
+      <button class="cta" id="btn-play">퀴즈 풀기</button>
+
+      <p class="rule">지방 고르기</p>
+      <div class="regions" id="region-list"></div>
+
+      <p class="rule">더 보기</p>
+      <div class="menu">
+        <button class="menu-row" id="btn-dex">
+          <span class="menu-label">내 도감</span>
+          <span class="menu-meta" id="menu-dex-count"></span>
+        </button>
+        <button class="menu-row" id="btn-badge">
+          <span class="menu-label">배지와 기록</span>
+          <span class="menu-meta" id="menu-badge-count"></span>
+        </button>
+      </div>
+
+      <p class="colophon">포켓몬 자료 출처 PokéAPI · 책 《포켓몬스터 썬&amp;문 포켓몬 전국대도감》과 함께 쓰는 놀이</p>
+    </div>
+  </section>
+
+  <!-- ============ 퀴즈 ============ -->
+  <section class="screen" id="screen-quiz">
+    <div class="quiz-bar">
+      <span class="quiz-where" id="quiz-region">관동</span>
+      <span class="quiz-count" id="quiz-progress">0 / 151</span>
+      <span class="tries" id="quiz-lives" aria-label="남은 기회"></span>
+    </div>
+
+    <div class="quiz-scroll" id="quiz-body">
+      <div class="plate" id="plate">
+        <span class="plate-no" id="plate-no">No. ???</span>
+        <span class="plate-q" id="plate-q" aria-hidden="true">?</span>
+        <img class="plate-art" id="plate-art" alt="" aria-hidden="true">
+      </div>
+
+      <p class="rule rule--tight">단서</p>
+      <div class="clues" id="hints"></div>
+    </div>
+
+    <div class="answer">
+      <div class="slots" id="slots" aria-label="이름 넣는 칸"></div>
+      <div class="tiles" id="tiles" aria-label="글자 고르기"></div>
+    </div>
+  </section>
+
+  <!-- ============ 도감 ============ -->
+  <section class="screen" id="screen-dex">
+    <div class="tabs" id="dex-tabs"></div>
+    <p class="dex-line" id="dex-progress"></p>
+    <div class="scroll">
+      <div class="dex-grid" id="dex-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============ 배지와 기록 ============ -->
+  <section class="screen" id="screen-badge">
+    <div class="scroll">
+      <p class="rule">기록</p>
+      <div class="stats" id="stat-row"></div>
+
+      <p class="rule">배지</p>
+      <div class="badges" id="badge-grid"></div>
+
+      <p class="rule">설정</p>
+      <button class="menu-row menu-row--warn" id="btn-reset">
+        <span class="menu-label">도감 처음부터 다시 시작</span>
+      </button>
+      <p class="note">누르면 모아 둔 포켓몬이 모두 사라져. 두 번 물어볼 거야.</p>
+    </div>
+  </section>
+
+  <div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+  <div class="booting" id="loading">도감을 펴고 있어요</div>
+</main>
+
+<script src="data/pokedex.js"></script>
+<script src="data/book-pages.js"></script>
+<script src="js/util.js"></script>
+<script src="js/save.js"></script>
+<script src="js/data.js"></script>
+<script src="js/dex.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

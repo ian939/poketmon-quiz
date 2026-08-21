@@ -1,0 +1,18 @@
+# 책 사진(표지·색인)은 구입한 책을 찍은 것이라 공개 저장소에 올리지 않는다.
+# 색인에서 뽑아낸 결과(data/index-ocr/*.tsv, data/book-pages.js)만 담는다.
+*.jpg
+*.jpeg
+
+# 도구 의존성 (이미지 축소용 sharp — 필요할 때만 설치)
+node_modules/
+package.json
+package-lock.json
+
+# 색인 사진을 판독하려고 잘라 둔 임시 타일
+_tiles/
+
+# OS·편집기
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
