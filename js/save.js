@@ -4,13 +4,13 @@
 
   const KEY = 'pokequiz.save.v1';
 
+  // 챕터 잠금은 없다 — 아이가 아무 타입이나 바로 고를 수 있다.
   const empty = () => ({
-    v: 1,
-    caught: {},          // id -> { at, misses }
-    escaped: {},         // id -> 도망간 횟수 (다시 출제 대상)
-    unlocked: ['관동'],  // 열린 지역
-    badges: {},          // "관동:gold" -> 획득 시각
-    milestones: [],      // 이미 축하한 마일스톤
+    v: 2,
+    caught: {},     // id -> { at, misses }
+    escaped: {},    // id -> 도망간 횟수 (다시 출제 대상)
+    badges: {},     // "물:gold" -> 획득 시각
+    milestones: [], // 이미 축하한 마일스톤
     stats: { streak: 0, bestStreak: 0, quizzes: 0, startedAt: Date.now() },
     settings: { muted: false },
   });
@@ -24,13 +24,17 @@
       const parsed = JSON.parse(raw);
       // 필드가 빠진 예전 저장본도 안전하게 열리도록 기본값과 합친다
       const base = empty();
+      // 잡은 포켓몬은 그대로 살리고, 배지는 지역 기준이던 예전 것을 버린다
+      // (v2에서 타입 기준으로 바뀌어 키가 맞지 않는다 — 다시 모으면 축하창이 뜬다)
+      const badges = parsed.v === base.v ? parsed.badges || {} : {};
       return {
         ...base,
         ...parsed,
+        v: base.v,
+        unlocked: undefined,
         caught: parsed.caught || {},
         escaped: parsed.escaped || {},
-        unlocked: parsed.unlocked && parsed.unlocked.length ? parsed.unlocked : base.unlocked,
-        badges: parsed.badges || {},
+        badges,
         milestones: parsed.milestones || [],
         stats: { ...base.stats, ...(parsed.stats || {}) },
         settings: { ...base.settings, ...(parsed.settings || {}) },
@@ -84,16 +88,6 @@
     },
 
     escapedCount: (id) => state.escaped[id] || 0,
-
-    isUnlocked: (region) => state.unlocked.indexOf(region) !== -1,
-    unlock(region) {
-      if (!Save.isUnlocked(region)) {
-        state.unlocked.push(region);
-        persist();
-        return true;
-      }
-      return false;
-    },
 
     hasBadge: (key) => Object.prototype.hasOwnProperty.call(state.badges, key),
     awardBadge(key) {

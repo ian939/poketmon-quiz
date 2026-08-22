@@ -1,4 +1,5 @@
-/* 도감 화면, 진행률, 배지·마일스톤 판정, 상세 카드 */
+/* 도감 화면, 진행률, 배지·마일스톤 판정, 상세 카드
+ * 챕터는 타입 기준이고, 잠긴 챕터는 없다 — 아이가 원하는 타입을 바로 고를 수 있다. */
 (function () {
   'use strict';
 
@@ -6,13 +7,14 @@
   const Data = window.Data;
   const Save = window.Save;
 
-  let activeRegion = null;
+  const ALL = '전체';
+  let activeTab = ALL;
 
   const pad3 = (n) => String(n).padStart(3, '0');
 
   /* ---------- 진행률 ---------- */
-  function regionProgress(region) {
-    const list = Data.inRegion(region);
+  function typeProgress(type) {
+    const list = Data.inType(type);
     let caught = 0;
     for (const p of list) if (Save.isCaught(p.id)) caught += 1;
     return { caught, total: list.length, ratio: list.length ? caught / list.length : 0 };
@@ -23,42 +25,30 @@
     return { caught, total: Data.total, ratio: caught / Data.total };
   }
 
-  /** 다음 지역을 열기까지 필요한 마리 수 */
-  function unlockNeed(region) {
-    return Math.min(Data.UNLOCK_NEED, Data.regionSize(region));
-  }
+  /** 탭이나 챕터 이름으로 목록/진행률을 얻는다 ('전체'면 802마리 전부) */
+  const listOf = (tab) => (tab === ALL ? Data.all : Data.inType(tab));
+  const progressOf = (tab) => (tab === ALL ? totalProgress() : typeProgress(tab));
 
   /**
-   * 잡은 뒤 새로 생긴 보상을 모아 돌려준다.
-   * (지역 해제 / 배지 / 전체 마일스톤)
+   * 잡은 뒤 새로 생긴 보상을 모아 돌려준다. (타입 배지 / 전체 마일스톤)
+   * 챕터 잠금이 없으므로 해제 보상은 없다.
    */
   function claimRewards() {
     const events = [];
-    const names = Data.regionNames;
 
-    // 지역 해제: 앞 지역에서 목표 수를 채우면 다음 지역이 열린다
-    for (let i = 0; i < names.length - 1; i += 1) {
-      const cur = names[i];
-      const next = names[i + 1];
-      if (!Save.isUnlocked(cur)) continue;
-      if (regionProgress(cur).caught >= unlockNeed(cur) && Save.unlock(next)) {
-        events.push({ type: 'unlock', region: next });
-      }
-    }
-
-    // 배지: 지역별 20% / 50% / 100%
+    // 타입 배지: 20% / 50% / 100%
     // 한 번에 여러 단계를 넘었으면(저장을 옮겼거나 건너뛴 경우) 축하창이
     // 줄줄이 뜨지 않도록 가장 높은 단계만 알린다. 나머지는 조용히 기록.
-    names.forEach((region) => {
-      const { caught, total } = regionProgress(region);
+    Data.typeNames.forEach((type) => {
+      const { caught, total } = typeProgress(type);
       let top = null;
       Data.BADGE_TIERS.forEach((tier) => {
         const need = Math.max(1, Math.ceil(total * tier.ratio));
-        if (caught >= need && Save.awardBadge(`${region}:${tier.key}`)) {
+        if (caught >= need && Save.awardBadge(`${type}:${tier.key}`)) {
           top = tier; // BADGE_TIERS는 낮은 단계부터이므로 마지막이 가장 높다
         }
       });
-      if (top) events.push({ type: 'badge', region, tier: top });
+      if (top) events.push({ type: 'badge', group: type, tier: top });
     });
 
     // 전체 마일스톤 — 마찬가지로 새로 넘은 것 중 가장 큰 것만 축하한다
@@ -76,15 +66,15 @@
   }
 
   /* ---------- 홈 히어로: 802칸 모자이크 ----------
-   * 칸 하나가 포켓몬 한 마리. 잡으면 그 포켓몬의 타입 색으로 칠해지므로,
-   * 모으는 동안 도감이 타입 색으로 물들어 간다. */
+   * 칸 하나가 포켓몬 한 마리. 책과 같은 타입 순서로 늘어놓았고,
+   * 잡으면 그 포켓몬의 타입 색으로 칠해져 도감이 색으로 물들어 간다. */
   function renderMosaic() {
     const box = $('#mosaic');
     if (!box) return;
     box.innerHTML = '';
     const frag = document.createDocumentFragment();
 
-    Data.all.forEach((p) => {
+    Data.mosaicOrder.forEach((p) => {
       const known = Save.isCaught(p.id);
       const cell = el(known ? 'button' : 'div', `mosaic-cell${known ? ' is-known' : ''}`);
       if (known) {
@@ -93,9 +83,10 @@
         cell.title = `No.${pad3(p.id)} ${p.name}`;
         cell.setAttribute('aria-label', `No.${pad3(p.id)} ${p.name}`);
       } else {
-        // 빈 칸도 지방마다 조금 다른 색으로 두어 구간이 보이게 한다
-        const meta = Data.REGION_META[p.region];
-        if (meta) cell.style.background = meta.tint;
+        // 빈 칸도 타입마다 조금 다르게 두어 타입 구간이 보이게 한다.
+        // 색 섞기는 CSS에 맡겨 color-mix를 모르는 브라우저에서도 기본색으로 보이게 한다.
+        cell.style.setProperty('--tint', Data.typeColor(p.types[0]));
+        cell.dataset.tint = '';
         cell.setAttribute('aria-hidden', 'true');
       }
       frag.appendChild(cell);
@@ -107,43 +98,47 @@
       `802칸 중 ${t.caught}칸 채움 · ${(t.ratio * 100).toFixed(1)}%`;
   }
 
-  /* ---------- 도감 그리드 ---------- */
+  /* ---------- 도감 ---------- */
   function renderTabs() {
     const tabs = $('#dex-tabs');
     tabs.innerHTML = '';
-    Data.regionNames.forEach((region) => {
-      const unlocked = Save.isUnlocked(region);
-      const { caught, total } = regionProgress(region);
+    [ALL].concat(Data.typeNames).forEach((tab) => {
+      const { caught, total } = progressOf(tab);
       const btn = el('button', 'tab');
-      if (region === activeRegion) btn.classList.add('is-on');
-      if (!unlocked) btn.classList.add('is-locked');
-      btn.appendChild(el('span', null, region));
-      btn.appendChild(el('span', 'tab-count', unlocked ? `${caught}/${total}` : '잠김'));
+      if (tab === activeTab) btn.classList.add('is-on');
+      if (tab !== ALL) {
+        btn.style.setProperty('--tab', Data.typeColor(tab));
+        btn.classList.add('tab--type');
+      }
+      btn.appendChild(el('span', null, tab));
+      btn.appendChild(el('span', 'tab-count', `${caught}/${total}`));
       btn.onclick = () => {
-        activeRegion = region;
-        renderDex(region);
+        activeTab = tab;
+        renderDex(tab);
       };
       tabs.appendChild(btn);
     });
   }
 
-  function renderDex(region) {
-    activeRegion = region || activeRegion || Data.regionNames[0];
+  function renderDex(tab) {
+    activeTab = tab || activeTab || ALL;
     renderTabs();
 
-    const { caught, total, ratio } = regionProgress(activeRegion);
+    const { caught, total, ratio } = progressOf(activeTab);
     const t = totalProgress();
+    const label = activeTab === ALL ? '전체' : `${activeTab} 타입`;
     $('#dex-progress').textContent =
-      `${activeRegion} ${caught} / ${total} (${Math.round(ratio * 100)}%)   전체 ${t.caught} / ${t.total}`;
+      `${label} ${caught} / ${total} (${Math.round(ratio * 100)}%)` +
+      (activeTab === ALL ? '' : `   도감 전체 ${t.caught} / ${t.total}`);
 
     const grid = $('#dex-grid');
     grid.innerHTML = '';
     const frag = document.createDocumentFragment();
 
-    Data.inRegion(activeRegion).forEach((p) => {
+    listOf(activeTab).forEach((p) => {
       const known = Save.isCaught(p.id);
-      // 아직 못 잡은 칸은 실루엣도 보여 주지 않는다 — 퀴즈에서 모습을 가리는 것과
-      // 같은 규칙이어야 도감을 뒤져 답을 찾는 일이 없다.
+      // 아직 못 잡은 칸은 모습을 보여 주지 않는다 — 퀴즈에서 가리는 것과 같은 규칙이어야
+      // 도감을 뒤져 답을 찾는 일이 없다.
       if (!known) {
         const cell = el('div', 'cell');
         cell.appendChild(el('span', 'cell-q', '?'));
@@ -174,6 +169,7 @@
     p.types.forEach((t) => {
       const chip = el('span', 'chip', t);
       chip.style.background = Data.typeColor(t);
+      chip.style.color = Data.typeTextColor(t);
       wrap.appendChild(chip);
     });
     return wrap;
@@ -293,23 +289,24 @@
       s.appendChild(el('div', 'stat-key', key));
       box.appendChild(s);
     };
+    const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
     addStat(t.caught, '잡은 포켓몬');
     addStat(`${Math.round(t.ratio * 100)}%`, '도감 완성도');
     addStat(stats.bestStreak, '최고 연속 정답');
-    addStat(Save.badgeKeys().length, '모은 배지');
+    addStat(`${Save.badgeKeys().length}/${badgeMax}`, '모은 배지');
 
     const grid = $('#badge-grid');
     grid.innerHTML = '';
-    Data.regionNames.forEach((region) => {
-      const { caught, total } = regionProgress(region);
+    Data.typeNames.forEach((type) => {
+      const { caught, total } = typeProgress(type);
       Data.BADGE_TIERS.forEach((tier) => {
-        const has = Save.hasBadge(`${region}:${tier.key}`);
+        const has = Save.hasBadge(`${type}:${tier.key}`);
         const need = Math.max(1, Math.ceil(total * tier.ratio));
         const card = el('div', `badge${has ? '' : ' is-off'}`);
         const stamp = el('div', 'stamp', has ? tier.mark : '');
         if (has) stamp.style.setProperty('--stamp', tier.color);
         card.appendChild(stamp);
-        card.appendChild(el('div', 'badge-name', `${region} ${tier.label}`));
+        card.appendChild(el('div', 'badge-name', `${type} ${tier.label}`));
         card.appendChild(el('div', 'badge-cond', has ? '획득' : `${caught} / ${need}`));
         grid.appendChild(card);
       });
@@ -317,19 +314,21 @@
   }
 
   window.Dex = {
+    ALL,
     renderDex,
     renderBadges,
     renderMosaic,
     openDetail,
-    regionProgress,
+    typeProgress,
     totalProgress,
-    unlockNeed,
+    progressOf,
+    listOf,
     claimRewards,
-    get activeRegion() {
-      return activeRegion;
+    get activeTab() {
+      return activeTab;
     },
-    set activeRegion(v) {
-      activeRegion = v;
+    set activeTab(v) {
+      activeTab = v;
     },
   };
 })();

@@ -19,6 +19,7 @@
   <span class="mast-mark" aria-hidden="true"></span>
   <h1 class="mast-title" id="mast-title">포켓몬 도감 퀴즈</h1>
   <button class="mast-btn" id="btn-sound">소리 끄기</button>
+  <button class="mast-btn mast-btn--warn" id="btn-reset">초기화</button>
   <button class="mast-btn is-hidden" id="btn-back">처음으로</button>
 </header>
 
@@ -35,10 +36,10 @@
         <p class="hero-caption" id="mosaic-caption"></p>
       </div>
 
-      <button class="cta" id="btn-play">퀴즈 풀기</button>
+      <button class="cta" id="btn-play">아무 포켓몬이나 풀기</button>
 
-      <p class="rule">지방 고르기</p>
-      <div class="regions" id="region-list"></div>
+      <p class="rule">타입 골라 풀기</p>
+      <div class="type-grid" id="type-list"></div>
 
       <p class="rule">더 보기</p>
       <div class="menu">
@@ -98,12 +99,6 @@
 
       <p class="rule">배지</p>
       <div class="badges" id="badge-grid"></div>
-
-      <p class="rule">설정</p>
-      <button class="menu-row menu-row--warn" id="btn-reset">
-        <span class="menu-label">도감 처음부터 다시 시작</span>
-      </button>
-      <p class="note">누르면 모아 둔 포켓몬이 모두 사라져. 두 번 물어볼 거야.</p>
     </div>
   </section>
 

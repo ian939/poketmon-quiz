@@ -15,27 +15,26 @@
   const DISTRACTORS = 3;   // 함정 글자 개수
   const MAX_TILES = 9;
 
-  let region = null;
+  // chapter === Dex.ALL('전체')이면 802마리 전부에서, 타입 이름이면 그 타입에서 출제
+  let chapter = null;
   let cur = null;   // { p, answer, slots, fill, tiles, misses, given }
   let busy = false; // 연출 중 입력 막기
 
+  const chapterLabel = () => (chapter === Dex.ALL ? '전체' : `${chapter} 타입`);
+
   /* ---------- 출제 대상 고르기 ---------- */
-  // 책과 같은 도감 번호 순서로 나아가되, 앞쪽 몇 마리 중에서 무작위로 골라
-  // 순서를 예측할 수 있으면서도 매번 조금씩 달라지게 한다.
+  // 아직 못 잡은 포켓몬 중에서 고르게 뽑는다. 순서대로 내지 않기 때문에
+  // 어떤 포켓몬이든 나올 수 있다.
   function pickTarget() {
-    const list = Data.inRegion(region);
-    const uncaught = list.filter((p) => !Save.isCaught(p.id));
+    const uncaught = Dex.listOf(chapter).filter((p) => !Save.isCaught(p.id));
     if (!uncaught.length) return null;
 
     const fresh = uncaught.filter((p) => !Save.escapedCount(p.id));
     const retry = uncaught.filter((p) => Save.escapedCount(p.id));
 
     // 도망간 포켓몬도 잊지 않도록 가끔 다시 낸다
-    if (retry.length && (!fresh.length || Math.random() < 0.3)) {
-      return retry[Math.floor(Math.random() * Math.min(retry.length, 5))];
-    }
-    const head = fresh.slice(0, 8);
-    return head[Math.floor(Math.random() * head.length)];
+    const pool = retry.length && (!fresh.length || Math.random() < 0.3) ? retry : fresh;
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   /* ---------- 타일 만들기 ---------- */
@@ -58,8 +57,12 @@
 
   /* ---------- 화면 그리기 ---------- */
   function renderBar() {
-    const { caught, total } = Dex.regionProgress(region);
-    $('#quiz-region').textContent = `${region} 지방`;
+    const { caught, total } = Dex.progressOf(chapter);
+    const where = $('#quiz-region');
+    where.textContent = chapterLabel();
+    // 타입 챕터면 그 타입 색을 상단 줄에 얹어 지금 어디를 푸는지 한눈에 보이게
+    where.style.background = chapter === Dex.ALL ? '' : Data.typeColor(chapter);
+    where.style.color = chapter === Dex.ALL ? '' : Data.typeTextColor(chapter);
     $('#quiz-progress').textContent = `${caught} / ${total}`;
     const tries = $('#quiz-lives');
     tries.innerHTML = '';
@@ -371,25 +374,20 @@
       const ev = queue.shift();
       const sheet = el('div');
 
-      if (ev.type === 'unlock') {
-        Sound.unlock();
-        sheet.appendChild(el('p', 'sheet-eyebrow', '새로운 지방'));
-        sheet.appendChild(el('h2', 'sheet-title', `${ev.region} 지방이 열렸다`));
-        sheet.appendChild(el('p', 'sheet-text', Data.REGION_META[ev.region].desc));
-      } else if (ev.type === 'badge') {
+      if (ev.type === 'badge') {
         Sound.fanfare();
         const stamp = el('div', 'stamp', ev.tier.mark);
         stamp.style.setProperty('--stamp', ev.tier.color);
         sheet.appendChild(stamp);
         sheet.appendChild(el('p', 'sheet-eyebrow', '배지 획득'));
-        sheet.appendChild(el('h2', 'sheet-title', `${ev.region} ${ev.tier.label}`));
+        sheet.appendChild(el('h2', 'sheet-title', `${ev.group} ${ev.tier.label}`));
         sheet.appendChild(
           el(
             'p',
             'sheet-text',
             ev.tier.ratio >= 1
-              ? `${ev.region} 지방을 전부 모았어!`
-              : `${ev.region} 지방의 ${Math.round(ev.tier.ratio * 100)}%를 모았어.`,
+              ? `${ev.group} 타입을 전부 모았어!`
+              : `${ev.group} 타입의 ${Math.round(ev.tier.ratio * 100)}%를 모았어.`,
           ),
         );
       } else {
@@ -429,7 +427,7 @@
   function nextQuestion() {
     const p = pickTarget();
     if (!p) {
-      showRegionClear();
+      showChapterClear();
       return;
     }
     cur = {
@@ -459,37 +457,42 @@
     $('#quiz-body').scrollTop = 0;
   }
 
-  /** 이 지방을 다 잡았을 때: 아직 남은 다른 지방으로 이어 준다 */
-  function showRegionClear() {
-    const names = Data.regionNames;
-    const idx = names.indexOf(region);
-    const nextRegion = names
+  /** 이 챕터를 다 잡았을 때: 아직 남은 다른 타입으로 이어 준다 */
+  function showChapterClear() {
+    const names = Data.typeNames;
+    const idx = names.indexOf(chapter);
+    const nextType = names
       .slice(idx + 1)
-      .concat(names.slice(0, idx))
-      .find((r) => Save.isUnlocked(r) && Dex.regionProgress(r).caught < Data.regionSize(r));
+      .concat(names.slice(0, Math.max(idx, 0)))
+      .find((t) => Dex.typeProgress(t).caught < Data.typeSize(t));
 
+    const done = Dex.progressOf(chapter);
     const sheet = el('div');
-    sheet.appendChild(el('p', 'sheet-eyebrow', '지방 완성'));
-    sheet.appendChild(el('h2', 'sheet-title', `${region} 지방을 다 모았다`));
-    sheet.appendChild(
-      el(
-        'p',
-        'sheet-text',
-        nextRegion
-          ? `${region} 지방 포켓몬을 모두 모았어.\n이제 ${nextRegion} 지방으로 가 볼까?`
-          : `${region} 지방 포켓몬을 모두 모았어.\n정말 대단해!`,
-      ),
-    );
-    sheet.appendChild(
-      el('p', 'sheet-data', `${region} ${Data.regionSize(region)} / ${Data.regionSize(region)}`),
-    );
+    if (chapter === Dex.ALL) {
+      sheet.appendChild(el('p', 'sheet-eyebrow', '도감 완성'));
+      sheet.appendChild(el('h2', 'sheet-title', '802마리를 모두 모았다'));
+      sheet.appendChild(el('p', 'sheet-text', '도감을 끝까지 채웠어.\n정말 대단해!'));
+    } else {
+      sheet.appendChild(el('p', 'sheet-eyebrow', '타입 완성'));
+      sheet.appendChild(el('h2', 'sheet-title', `${chapter} 타입을 다 모았다`));
+      sheet.appendChild(
+        el(
+          'p',
+          'sheet-text',
+          nextType
+            ? `${chapter} 타입 포켓몬을 모두 모았어.\n이제 ${nextType} 타입을 해 볼까?`
+            : `${chapter} 타입 포켓몬을 모두 모았어.\n정말 대단해!`,
+        ),
+      );
+    }
+    sheet.appendChild(el('p', 'sheet-data', `${chapterLabel()} ${done.caught} / ${done.total}`));
 
     const buttons = el('div', 'sheet-buttons');
-    if (nextRegion) {
-      const go = el('button', 'btn btn--go', `${nextRegion} 지방으로`);
+    if (nextType) {
+      const go = el('button', 'btn btn--go', `${nextType} 타입 풀기`);
       go.onclick = () => {
         window.App.closeOverlay();
-        region = nextRegion;
+        chapter = nextType;
         nextQuestion();
       };
       buttons.appendChild(go);
@@ -508,12 +511,13 @@
   }
 
   window.Quiz = {
-    start(r) {
-      region = r;
+    /** chapter: Dex.ALL('전체') 또는 타입 이름 */
+    start(c) {
+      chapter = c || Dex.ALL;
       nextQuestion();
     },
-    get region() {
-      return region;
+    get chapter() {
+      return chapter;
     },
   };
 })();

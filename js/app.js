@@ -8,6 +8,8 @@
   const Dex = window.Dex;
   const Quiz = window.Quiz;
 
+  const RESET_WORD = '초기화';
+
   const TITLES = {
     home: '포켓몬 도감 퀴즈',
     quiz: '누구일까',
@@ -20,7 +22,9 @@
     $$('.screen').forEach((s) => s.classList.remove('is-on'));
     const target = $(`#screen-${name}`);
     if (target) target.classList.add('is-on');
+    // 초기화는 홈에서만, 처음으로는 홈이 아닐 때만 보인다
     $('#btn-back').classList.toggle('is-hidden', name === 'home');
+    $('#btn-reset').classList.toggle('is-hidden', name !== 'home');
     $('#mast-title').textContent = TITLES[name] || TITLES.home;
   }
 
@@ -69,87 +73,6 @@
     closeOverlay();
   });
 
-  /* ---------- 홈 ---------- */
-  function renderHome() {
-    Dex.renderMosaic();
-
-    const t = Dex.totalProgress();
-    $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
-    $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / 21`;
-
-    const list = $('#region-list');
-    list.innerHTML = '';
-
-    Data.regionNames.forEach((name, i) => {
-      const meta = Data.REGION_META[name];
-      const unlocked = Save.isUnlocked(name);
-      const { caught, total, ratio } = Dex.regionProgress(name);
-
-      const card = el('button', `region${unlocked ? '' : ' is-locked'}`);
-      card.style.borderLeftColor = meta.color;
-
-      const body = el('div');
-      body.appendChild(el('div', 'region-name', `${name} 지방`));
-
-      if (unlocked) {
-        body.appendChild(el('div', 'region-note', meta.desc));
-        const bar = el('div', 'region-bar');
-        const fill = el('i');
-        fill.style.width = `${(ratio * 100).toFixed(1)}%`;
-        bar.appendChild(fill);
-        body.appendChild(bar);
-      } else {
-        const prev = Data.regionNames[i - 1];
-        const need = Dex.unlockNeed(prev);
-        const have = Dex.regionProgress(prev).caught;
-        body.appendChild(
-          el('div', 'region-note', `${prev} 지방에서 ${need}마리를 모으면 열려. 지금 ${have}마리.`),
-        );
-      }
-      card.appendChild(body);
-
-      const right = el('div');
-      right.className = 'region-chip';
-      right.textContent = unlocked ? `${caught}/${total}` : '잠김';
-      card.appendChild(right);
-
-      if (unlocked) {
-        const earned = Data.BADGE_TIERS.filter((tier) => Save.hasBadge(`${name}:${tier.key}`));
-        if (earned.length) {
-          const stamps = el('div', 'region-stamps');
-          earned.forEach((tier) => {
-            const dot = el('i');
-            dot.style.background = tier.color;
-            stamps.appendChild(dot);
-          });
-          right.appendChild(stamps);
-        }
-      }
-
-      card.onclick = () => {
-        if (!unlocked) {
-          Sound.erase();
-          toastLocked(name, i);
-          return;
-        }
-        startQuiz(name);
-      };
-      list.appendChild(card);
-    });
-  }
-
-  function toastLocked(name, i) {
-    const prev = Data.regionNames[i - 1];
-    const need = Dex.unlockNeed(prev);
-    const have = Dex.regionProgress(prev).caught;
-    openOverlay(
-      buildNotice(
-        '아직 잠겨 있어',
-        `${name} 지방은 ${prev} 지방에서 ${need}마리를 모으면 열려.\n지금 ${have}마리 모았어.`,
-      ),
-    );
-  }
-
   function buildNotice(title, text) {
     const sheet = el('div');
     sheet.appendChild(el('h2', 'sheet-title', title));
@@ -162,21 +85,70 @@
     return sheet;
   }
 
-  function startQuiz(region) {
-    show('quiz');
-    Quiz.start(region);
+  /* ---------- 홈 ---------- */
+  function renderHome() {
+    Dex.renderMosaic();
+
+    const t = Dex.totalProgress();
+    const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
+    $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
+    $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;
+
+    const grid = $('#type-list');
+    grid.innerHTML = '';
+
+    Data.typeNames.forEach((type) => {
+      const { caught, total, ratio } = Dex.typeProgress(type);
+      const color = Data.typeColor(type);
+
+      const tile = el('button', 'type-tile');
+      tile.style.setProperty('--type', color);
+      tile.style.setProperty('--type-ink', Data.typeTextColor(type));
+
+      const head = el('div', 'type-head');
+      head.appendChild(el('span', 'type-name', type));
+      head.appendChild(el('span', 'type-count', `${caught}/${total}`));
+      tile.appendChild(head);
+
+      const body = el('div', 'type-body');
+      body.appendChild(el('p', 'type-note', Data.typeNote(type)));
+      const bar = el('div', 'type-bar');
+      const fill = el('i');
+      fill.style.width = `${(ratio * 100).toFixed(1)}%`;
+      fill.style.background = color;
+      bar.appendChild(fill);
+      body.appendChild(bar);
+      tile.appendChild(body);
+
+      const earned = Data.BADGE_TIERS.filter((tier) => Save.hasBadge(`${type}:${tier.key}`));
+      if (earned.length) {
+        const stamps = el('div', 'type-stamps');
+        earned.forEach((tier) => {
+          const dot = el('i');
+          dot.style.background = tier.color;
+          stamps.appendChild(dot);
+        });
+        body.appendChild(stamps);
+      }
+
+      tile.setAttribute('aria-label', `${type} 타입 ${caught} / ${total} 마리`);
+      tile.onclick = () => startQuiz(type);
+      grid.appendChild(tile);
+    });
   }
 
-  /** 아직 다 못 잡은, 열려 있는 지방 중 첫 번째부터 이어서 */
-  function playNext() {
-    const target = Data.regionNames.find(
-      (r) => Save.isUnlocked(r) && Dex.regionProgress(r).caught < Data.regionSize(r),
-    );
-    if (!target) {
+  function startQuiz(chapter) {
+    show('quiz');
+    Quiz.start(chapter);
+  }
+
+  /** 아무 타입이나 섞어서 — 802마리 전부가 나올 수 있다 */
+  function playAny() {
+    if (Save.caughtCount() >= Data.total) {
       openOverlay(buildNotice('도감 완성', '802마리를 모두 모았어. 정말 대단해!'));
       return;
     }
-    startQuiz(target);
+    startQuiz(Dex.ALL);
   }
 
   function goHome() {
@@ -185,44 +157,70 @@
     show('home');
   }
 
-  /* ---------- 도감 초기화 (두 번 확인) ---------- */
+  /* ---------- 도감 초기화 ----------
+   * 아이가 실수로 지우지 못하게, '초기화'라고 직접 입력해야 눌릴 수 있게 한다. */
   function confirmReset() {
-    const first = el('div');
-    first.appendChild(el('p', 'sheet-eyebrow', '되돌릴 수 없음'));
-    first.appendChild(el('h2', 'sheet-title', '정말 지울까?'));
-    first.appendChild(
-      el('p', 'sheet-text', `지금까지 모은 ${Save.caughtCount()}마리가 모두 사라져.\n처음부터 다시 할래?`),
+    const sheet = el('div');
+    sheet.appendChild(el('p', 'sheet-eyebrow', '되돌릴 수 없음'));
+    sheet.appendChild(el('h2', 'sheet-title', '도감을 초기화할까?'));
+    const have = Save.caughtCount();
+    sheet.appendChild(
+      el(
+        'p',
+        'sheet-text',
+        (have
+          ? `지금까지 모은 ${have}마리와 배지가 모두 사라져.\n`
+          : '아직 모은 포켓몬은 없어.\n') +
+          `정말 지우려면 아래에 "${RESET_WORD}"라고 쓴 다음 지우기를 눌러.`,
+      ),
     );
+
+    const input = el('input', 'reset-input');
+    input.type = 'text';
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('spellcheck', 'false');
+    input.setAttribute('aria-label', `초기화하려면 ${RESET_WORD}라고 입력`);
+    input.placeholder = RESET_WORD;
+    sheet.appendChild(input);
+
+    const hint = el('p', 'reset-hint', `"${RESET_WORD}"라고 쓰면 지우기 버튼이 켜져.`);
+    sheet.appendChild(hint);
+
     const buttons = el('div', 'sheet-buttons');
-    const keep = el('button', 'btn btn--go', '아니야, 그냥 둘래');
+    const wipe = el('button', 'btn btn--stop', '지우기');
+    wipe.disabled = true;
+    const keep = el('button', 'btn btn--go', '그만두기');
     keep.onclick = closeOverlay;
-    const drop = el('button', 'btn', '지울래');
-    drop.onclick = () => {
-      closeOverlay();
-      const second = el('div');
-      second.appendChild(el('p', 'sheet-eyebrow', '마지막 확인'));
-      second.appendChild(el('h2', 'sheet-title', '진짜 지울까?'));
-      second.appendChild(el('p', 'sheet-text', '한 번 지우면 되돌릴 수 없어.'));
-      const buttons2 = el('div', 'sheet-buttons');
-      const keep2 = el('button', 'btn btn--go', '그만두기');
-      keep2.onclick = closeOverlay;
-      const wipe = el('button', 'btn btn--stop', '모두 지우기');
-      wipe.onclick = () => {
-        Save.reset();
-        Sound.setMuted(Save.state.settings.muted);
-        paintSound();
-        closeOverlay();
-        goHome();
-      };
-      buttons2.appendChild(keep2);
-      buttons2.appendChild(wipe);
-      second.appendChild(buttons2);
-      openOverlay(second);
-    };
     buttons.appendChild(keep);
-    buttons.appendChild(drop);
-    first.appendChild(buttons);
-    openOverlay(first);
+    buttons.appendChild(wipe);
+    sheet.appendChild(buttons);
+
+    const matched = () => input.value.trim() === RESET_WORD;
+    input.addEventListener('input', () => {
+      const ok = matched();
+      wipe.disabled = !ok;
+      hint.textContent = ok
+        ? '이제 지우기를 누르면 처음부터 시작해.'
+        : `"${RESET_WORD}"라고 쓰면 지우기 버튼이 켜져.`;
+      hint.classList.toggle('is-ready', ok);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && matched()) wipe.click();
+    });
+
+    wipe.onclick = () => {
+      if (!matched()) return;
+      Save.reset();
+      Sound.setMuted(Save.state.settings.muted);
+      paintSound();
+      closeOverlay();
+      goHome();
+      openOverlay(buildNotice('처음부터 시작', '도감을 비웠어.\n다시 모아 보자!'));
+    };
+
+    openOverlay(sheet);
+    setTimeout(() => input.focus(), 60);
   }
 
   /* ---------- 소리 ---------- */
@@ -232,13 +230,9 @@
 
   /* ---------- 시작 ---------- */
   function bind() {
-    $('#btn-play').onclick = playNext;
+    $('#btn-play').onclick = playAny;
     $('#btn-dex').onclick = () => {
-      const first =
-        Dex.activeRegion ||
-        Data.regionNames.find((r) => Save.isUnlocked(r)) ||
-        Data.regionNames[0];
-      Dex.renderDex(first);
+      Dex.renderDex(Dex.activeTab || Dex.ALL);
       show('dex');
     };
     $('#btn-badge').onclick = () => {

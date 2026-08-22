@@ -96,6 +96,8 @@ body {
   cursor: pointer;
 }
 .mast-btn:active { transform: translateY(2px); }
+/* 초기화는 되돌릴 수 없으니 다른 버튼과 구분해 둔다 */
+.mast-btn--warn { background: var(--paper-2); color: var(--vermilion-2); }
 
 /* ---------- 화면 ---------- */
 #screens {
@@ -169,9 +171,14 @@ body {
 
 .mosaic-cell {
   aspect-ratio: 1;
-  background: #e8dcc2;
+  background: #e3d7bd;
   border: 0;
   padding: 0;
+}
+/* 아직 못 잡은 칸: 타입 색을 아주 옅게 섞어 타입 구간이 보이게 한다.
+   color-mix를 모르는 브라우저에서는 위의 기본색이 그대로 쓰인다. */
+.mosaic-cell[data-tint] {
+  background: color-mix(in srgb, var(--tint) 12%, #e3d7bd);
 }
 .mosaic-cell.is-known { cursor: pointer; }
 
@@ -201,63 +208,62 @@ body {
 }
 .cta:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--ink); }
 
-/* ---------- 지방 목록 (색인 행) ---------- */
-.regions { display: grid; gap: 8px; }
-
-.region {
+/* ---------- 타입 타일 (책의 타입별 구성과 같은 순서) ---------- */
+.type-grid {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 8px;
+}
+
+.type-tile {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  min-height: 76px;
-  padding: 11px 12px;
+  padding: 0;
+  overflow: hidden;
   text-align: left;
   font-family: var(--body);
-  background: var(--marigold);
+  background: var(--paper);
   border: 3px solid var(--ink);
-  border-left-width: 11px;
+  box-shadow: 4px 4px 0 var(--ink);
   cursor: pointer;
 }
-.region:active { transform: translateY(2px); }
-.region.is-locked { background: var(--paper-2); color: var(--ink-soft); cursor: not-allowed; }
+.type-tile:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 
-.region-name {
-  font-family: var(--display);
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 1.1;
+/* 타입 이름은 그 타입 색 위에, 색 밝기에 맞춘 글자색으로 */
+.type-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--type, var(--marigold));
+  color: var(--type-ink, var(--ink));
+  border-bottom: 3px solid var(--ink);
 }
-.region-note {
-  margin-top: 3px;
-  font-size: 13px;
+.type-name { font-family: var(--display); font-size: 24px; line-height: 1.05; }
+.type-count { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+
+.type-body { padding: 8px 10px 10px; }
+.type-note {
+  margin: 0;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.45;
+  color: var(--ink-soft);
   word-break: keep-all;
 }
-.region-bar {
+.type-bar {
   margin-top: 8px;
   height: 8px;
-  background: var(--paper);
+  background: var(--paper-2);
   border: 2px solid var(--ink);
 }
-.region-bar > i { display: block; height: 100%; background: var(--jade); }
+.type-bar > i { display: block; height: 100%; }
 
-/* 오른쪽 흰 칩 = 책의 페이지 번호 칸 */
-.region-chip {
-  align-self: start;
-  min-width: 62px;
-  padding: 6px 8px;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 15px;
-  font-weight: 700;
-  background: var(--paper);
-  border: 3px solid var(--ink);
-}
-.region-stamps { display: flex; gap: 3px; margin-top: 6px; justify-content: center; }
-.region-stamps > i {
-  width: 12px; height: 12px; border-radius: 50%;
+.type-stamps { display: flex; gap: 3px; margin-top: 7px; }
+.type-stamps > i {
+  width: 11px; height: 11px; border-radius: 50%;
   border: 2px solid var(--ink);
 }
 
@@ -280,19 +286,9 @@ body {
   cursor: pointer;
 }
 .menu-row:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
-.menu-row--warn { background: var(--paper-2); }
 
 .menu-label { font-size: 19px; font-weight: 700; }
 .menu-meta { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--ink-soft); }
-
-.note {
-  margin: 10px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.6;
-  color: var(--ink-soft);
-  word-break: keep-all;
-}
 
 .colophon {
   margin: 26px 0 0;
@@ -313,7 +309,14 @@ body {
   background: var(--paper-2);
   border-bottom: 3px solid var(--ink);
 }
-.quiz-where { font-family: var(--display); font-size: 18px; }
+/* 지금 어느 타입을 푸는지 그 타입 색으로 알려 준다 */
+.quiz-where {
+  font-family: var(--display);
+  font-size: 18px;
+  padding: 3px 10px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+}
 .quiz-count {
   font-family: var(--mono); font-size: 14px; font-weight: 700;
   padding: 3px 9px;
@@ -531,7 +534,8 @@ body {
   cursor: pointer;
 }
 .tab.is-on { background: var(--ink); color: var(--paper); }
-.tab.is-locked { opacity: .45; }
+/* 타입 탭은 왼쪽에 그 타입 색 띠를 둔다 */
+.tab--type { border-left-width: 9px; border-left-color: var(--tab, var(--ink)); }
 .tab-count { font-family: var(--mono); font-size: 12px; margin-left: 5px; }
 
 .dex-line {
@@ -689,6 +693,41 @@ body {
 .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 .btn--go { background: var(--jade); color: var(--paper); }
 .btn--stop { background: var(--vermilion); color: var(--paper); }
+.btn:disabled {
+  background: var(--paper-2);
+  color: #a2947c;
+  box-shadow: 4px 4px 0 var(--line, #cdbfa2);
+  cursor: not-allowed;
+}
+.btn:disabled:active { transform: none; }
+
+/* ---------- 초기화 확인 ---------- */
+/* 아이가 실수로 지우지 못하게 '초기화'라고 직접 써야 버튼이 켜진다 */
+.reset-input {
+  display: block;
+  width: 100%;
+  margin: 4px 0 6px;
+  padding: 12px 14px;
+  font-family: var(--body);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: inset 3px 3px 0 var(--paper-2);
+}
+.reset-input::placeholder { color: #bfae90; font-weight: 500; }
+.reset-hint {
+  margin: 0 0 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  word-break: keep-all;
+}
+.reset-hint.is-ready { color: var(--vermilion-2); }
 
 /* 몬스터볼 던지기 — 아이의 보상 순간, 짧게 */
 .ball {

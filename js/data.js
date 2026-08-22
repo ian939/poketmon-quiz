@@ -1,4 +1,7 @@
-/* 도감 데이터 조회 + 아이가 읽을 힌트 문장 만들기 */
+/* 도감 데이터 조회 + 아이가 읽을 단서 문장 만들기
+ *
+ * 챕터는 지방이 아니라 **타입**으로 묶는다. 아이가 보는 책이 타입별로 실려 있어서
+ * (풀 12~22쪽, 불꽃 23~30쪽, 물 31~45쪽 …) 화면 구성이 책과 같아야 찾기 쉽다. */
 (function () {
   'use strict';
 
@@ -8,33 +11,10 @@
   if (!raw || !raw.pokemon) {
     throw new Error('data/pokedex.js를 불러오지 못했습니다.');
   }
-  const bookPages = window.BOOK_PAGES || {}; // { "피카츄": 76 } — 없으면 책 힌트 생략
+  const bookPages = window.BOOK_PAGES || {}; // { "피카츄": 76 } — 없으면 책 단서 생략
 
   const all = raw.pokemon;
   const byId = new Map(all.map((p) => [p.id, p]));
-  const regions = raw.regions;
-
-  // 지역별 목록 (도감 번호 순)
-  const byRegion = new Map();
-  regions.forEach((r) => byRegion.set(r.region, []));
-  all.forEach((p) => byRegion.get(p.region).push(p));
-
-  // 함정 글자용 음절 풀: 실제 포켓몬 이름에 쓰이는 글자만 모아
-  // 그럴듯하게 보이도록 한다(무작위 한글은 티가 난다).
-  const syllablePool = (function () {
-    const freq = new Map();
-    all.forEach((p) => {
-      for (const ch of p.name) {
-        if (ch >= '가' && ch <= '힣') freq.set(ch, (freq.get(ch) || 0) + 1);
-      }
-    });
-    // 자주 쓰이는 글자가 더 자주 뽑히도록 빈도만큼 넣는다
-    const pool = [];
-    freq.forEach((count, ch) => {
-      for (let i = 0; i < Math.min(count, 6); i += 1) pool.push(ch);
-    });
-    return pool;
-  })();
 
   const TYPE_COLORS = {
     노말: '#a8a878', 불꽃: '#f08030', 물: '#6890f0', 전기: '#f8d030',
@@ -44,23 +24,63 @@
     강철: '#b8b8d0', 페어리: '#ee99ac',
   };
 
-  // color = 지방 카드 왼쪽 띠, tint = 홈 모자이크의 빈 칸 색
-  // (아직 아무것도 안 잡았을 때도 7개 지방 구간이 보이도록 옅게 나눈다)
-  const REGION_META = {
-    관동: { color: '#e0483c', tint: '#ecd8c4', desc: '피카츄가 사는 첫 번째 지방' },
-    성도: { color: '#e8a51d', tint: '#ebdfbe', desc: '전설의 새와 개가 있는 지방' },
-    호연: { color: '#3f9a56', tint: '#dee3c3', desc: '바다와 화산이 있는 지방' },
-    신오: { color: '#2b7cc4', tint: '#d6e0e2', desc: '시간과 공간의 포켓몬이 있는 지방' },
-    하나: { color: '#5b6f7a', tint: '#dcdcd5', desc: '새로운 포켓몬이 가득한 지방' },
-    칼로스: { color: '#8a3fa6', tint: '#e2d6de', desc: '메가진화가 시작된 지방' },
-    알로라: { color: '#0f8f9c', tint: '#d4dfdd', desc: '섬으로 이루어진 따뜻한 지방' },
+  // 책이 타입을 싣는 순서. data/book-pages.json의 페이지 번호에서 뽑아냈고,
+  // 타입마다 페이지 구간이 거의 겹치지 않아 순서가 분명하다.
+  const TYPE_ORDER = [
+    '풀', '불꽃', '물', '벌레', '노말', '독', '땅', '전기', '격투',
+    '에스퍼', '바위', '강철', '고스트', '얼음', '악', '드래곤', '비행', '페어리',
+  ];
+
+  const TYPE_NOTES = {
+    풀: '풀과 나무를 닮은 포켓몬',
+    불꽃: '뜨거운 불을 다루는 포켓몬',
+    물: '물속에서 사는 포켓몬',
+    벌레: '벌레를 닮은 포켓몬',
+    노말: '특별한 힘은 없지만 튼튼한 포켓몬',
+    독: '독을 쓰는 포켓몬',
+    땅: '땅을 파고 흙을 다루는 포켓몬',
+    전기: '번쩍번쩍 전기를 쓰는 포켓몬',
+    격투: '주먹과 발차기로 싸우는 포켓몬',
+    에스퍼: '마음의 힘을 쓰는 포켓몬',
+    바위: '단단한 바위 같은 포켓몬',
+    강철: '쇠처럼 튼튼한 포켓몬',
+    고스트: '스르륵 사라지는 유령 포켓몬',
+    얼음: '차가운 얼음을 다루는 포켓몬',
+    악: '나쁜 꾀를 부리는 포켓몬',
+    드래곤: '강하고 멋진 용 포켓몬',
+    비행: '하늘을 나는 포켓몬',
+    페어리: '반짝반짝 요정 포켓몬',
   };
 
-  // 다음 지역을 열려면 현재 지역에서 이만큼 잡아야 한다
-  const UNLOCK_NEED = 30;
+  // 타입 챕터에는 그 타입을 하나라도 가진 포켓몬이 모두 들어간다.
+  // (첫 번째 타입만 세면 비행 타입이 3마리밖에 안 된다 — 대부분 두 번째 타입이다)
+  const byType = new Map();
+  TYPE_ORDER.forEach((t) => byType.set(t, []));
+  all.forEach((p) => {
+    p.types.forEach((t) => {
+      if (byType.has(t)) byType.get(t).push(p);
+    });
+  });
 
-  // 지역별 배지 3단계 — 완주까지 기다리지 않고 중간에도 보상이 오게.
-  // mark/color는 화면에서 잉크 도장으로 그린다(이모지 대신).
+  // 홈 모자이크는 첫 번째 타입 기준으로 한 마리에 한 칸씩 — 책과 같은 순서로 늘어놓는다
+  const typeRank = new Map(TYPE_ORDER.map((t, i) => [t, i]));
+  const mosaicOrder = all.slice().sort((a, b) => {
+    const ra = typeRank.has(a.types[0]) ? typeRank.get(a.types[0]) : 99;
+    const rb = typeRank.has(b.types[0]) ? typeRank.get(b.types[0]) : 99;
+    return ra - rb || a.id - b.id;
+  });
+
+  /** 배경색이 밝으면 검은 글자, 어두우면 흰 글자 (읽기 대비 확보) */
+  function textOn(hex) {
+    const c = String(hex).replace('#', '');
+    const lin = [0, 2, 4]
+      .map((i) => parseInt(c.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    const lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+    return lum > 0.42 ? '#211d16' : '#fffcf2';
+  }
+
+  // 타입 챕터 3단계 배지 — 완주까지 기다리지 않고 중간에도 보상이 오게
   const BADGE_TIERS = [
     { key: 'bronze', label: '동배지', ratio: 0.2, mark: '동', color: '#a9682f' },
     { key: 'silver', label: '은배지', ratio: 0.5, mark: '은', color: '#7d8890' },
@@ -69,13 +89,11 @@
 
   const MILESTONES = [1, 5, 10, 25, 50, 100, 150, 200, 300, 400, 500, 650, 802];
 
-  /* ---------- 힌트 문장 ---------- */
+  /* ---------- 단서 문장 ---------- */
 
   function typeHint(p) {
     const t = p.types;
-    if (t.length === 2) {
-      return `${t[0]} 타입이면서 ${t[1]} 타입이야.`;
-    }
+    if (t.length === 2) return `${t[0]} 타입이면서 ${t[1]} 타입이야.`;
     return `${t[0]} 타입 포켓몬이야.`;
   }
 
@@ -133,6 +151,11 @@
     return null;
   }
 
+  function homeHint(p) {
+    if (!p.region) return null;
+    return `${p.region} 지방에서 온 포켓몬이야.`;
+  }
+
   function bookHint(p) {
     const page = bookPages[p.name];
     if (!page) return null;
@@ -149,7 +172,7 @@
   /**
    * 퀴즈 화면에 띄울 단서 목록.
    * 읽는 순서가 곧 난이도 순서(쉬운 단서 → 결정적 단서)가 되도록 배치한다.
-   * kind는 화면에서 행 색을 나누는 데 쓴다(도감 설명·책 힌트는 다르게 보인다).
+   * kind는 화면에서 행 색을 나누는 데 쓴다(도감 설명·책 단서는 다르게 보인다).
    */
   function hintsFor(p) {
     const cards = [];
@@ -159,6 +182,7 @@
     add('타입', typeHint(p), 'type');
     add('별명', genusHint(p));
     add('크기', sizeHint(p));
+    add('고향', homeHint(p));
     add('특성', abilityHint(p));
     add('기술', moveHint(p));
     add('진화', evoHint(p));
@@ -168,24 +192,39 @@
     return cards;
   }
 
-  const Data = {
+  /* ---------- 함정 글자 풀 ---------- */
+  // 실제 포켓몬 이름에 쓰이는 글자만 모아 그럴듯하게 보이도록 한다
+  const syllablePool = (function () {
+    const freq = new Map();
+    all.forEach((p) => {
+      for (const ch of p.name) {
+        if (ch >= '가' && ch <= '힣') freq.set(ch, (freq.get(ch) || 0) + 1);
+      }
+    });
+    const pool = [];
+    freq.forEach((count, ch) => {
+      for (let i = 0; i < Math.min(count, 6); i += 1) pool.push(ch);
+    });
+    return pool;
+  })();
+
+  window.Data = {
     all,
-    regions,
-    regionNames: regions.map((r) => r.region),
-    REGION_META,
+    mosaicOrder,
+    typeNames: TYPE_ORDER,
+    TYPE_NOTES,
     TYPE_COLORS,
     BADGE_TIERS,
     MILESTONES,
-    UNLOCK_NEED,
     syllablePool,
     get: (id) => byId.get(Number(id)),
-    inRegion: (region) => byRegion.get(region) || [],
-    regionSize: (region) => (byRegion.get(region) || []).length,
+    inType: (type) => byType.get(type) || [],
+    typeSize: (type) => (byType.get(type) || []).length,
     total: all.length,
     bookPage: (name) => bookPages[name] || null,
     hintsFor,
     typeColor: (t) => TYPE_COLORS[t] || '#9e9e9e',
+    typeTextColor: (t) => textOn(TYPE_COLORS[t] || '#9e9e9e'),
+    typeNote: (t) => TYPE_NOTES[t] || '',
   };
-
-  window.Data = Data;
 })();
