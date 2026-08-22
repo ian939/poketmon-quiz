@@ -171,7 +171,8 @@
 
   /**
    * 퀴즈 화면에 띄울 단서 목록.
-   * 읽는 순서가 곧 난이도 순서(쉬운 단서 → 결정적 단서)가 되도록 배치한다.
+   * 책에 실린 도감 설명을 맨 앞에 둔다 — 읽을거리가 가장 많고, 아이가 책에서 본
+   * 문장을 떠올리게 하는 단서라서 먼저 읽는 게 맞다. 그 뒤는 쉬운 단서 → 결정적 단서 순.
    * kind는 화면에서 행 색을 나누는 데 쓴다(도감 설명·책 단서는 다르게 보인다).
    */
   function hintsFor(p) {
@@ -179,7 +180,8 @@
     const add = (label, text, kind) => {
       if (text) cards.push({ label, text, kind: kind || 'plain' });
     };
-    add('타입', typeHint(p), 'type');
+    add('도감', maskName(p.flavor, p.name), 'flavor');
+    add('타입', typeHint(p));
     add('별명', genusHint(p));
     add('크기', sizeHint(p));
     add('고향', homeHint(p));
@@ -187,7 +189,6 @@
     add('기술', moveHint(p));
     add('진화', evoHint(p));
     add('특별', specialHint(p));
-    add('도감', maskName(p.flavor, p.name), 'flavor');
     add('책', bookHint(p), 'book');
     return cards;
   }

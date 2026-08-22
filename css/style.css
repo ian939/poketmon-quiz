@@ -339,14 +339,16 @@ body {
 
 /* ---------- 퀴즈: 미확인 기록 판 (시그니처) ---------- */
 /* 도감 기록의 사진 칸. 정사각으로 두어 '?'가 칸을 꽉 채우게 하고,
-   남는 높이는 단서를 더 보여 주는 데 쓴다. */
+   남는 높이는 단서를 더 보여 주는 데 쓴다.
+   아래쪽 패딩은 타입 띠가 들어갈 자리다. */
 .plate {
   position: relative;
   display: grid;
   place-items: center;
-  width: min(196px, 46vw);
+  width: min(200px, 47vw);
   aspect-ratio: 1;
   margin: 0 auto;
+  padding: 20px 8px 38px;
   background:
     repeating-linear-gradient(-45deg,
       var(--paper-2) 0 10px, #efe6d0 10px 20px);
@@ -369,20 +371,42 @@ body {
 
 .plate-q {
   font-family: var(--display);
-  font-size: min(118px, 30vw);
+  font-size: min(104px, 26vw);
   line-height: 1;
   color: var(--vermilion);
   transition: opacity .3s ease, transform .3s ease;
 }
 
+/* top/right/bottom/left로 자리를 잡고 object-fit이 그 안에 맞춘다 */
 .plate-art {
   position: absolute;
-  max-width: 84%;
-  max-height: 88%;
+  top: 14px; right: 10px; bottom: 40px; left: 10px;
+  width: auto; height: auto;
   object-fit: contain;
   opacity: 0;
   transform: scale(.82);
   transition: opacity .45s ease, transform .5s cubic-bezier(.2, 1.4, .5, 1);
+}
+
+/* 카드 아래 타입 띠 — 도감 기록의 '타입' 항목. 문제를 푸는 동안에도 보인다. */
+.plate-types {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 6px;
+  background: var(--paper);
+  border-top: 3px solid var(--ink);
+}
+.plate-chip {
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  border: 2px solid var(--ink);
 }
 
 .plate.is-open { box-shadow: 7px 7px 0 var(--jade); }
@@ -427,9 +451,6 @@ body {
   border: 2px solid var(--ink);
 }
 
-/* 타입 행은 왼쪽 띠를 그 타입의 색으로 칠한다.
-   문장이 이미 타입을 말하므로 따로 칩을 띄우지 않고 색만 얹는다. */
-.clue--type { border-left-width: 12px; border-left-color: var(--type, var(--ink)); }
 /* 도감 설명은 책에서 옮겨 온 글이므로 종이색으로 구분 */
 .clue--flavor { background: var(--paper); }
 /* 책 힌트는 실물 책으로 건너가는 다리라서 가장 눈에 띄게 */
@@ -496,10 +517,18 @@ body {
 }
 .tile:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 .tile.is-used { visibility: hidden; }
-.tile--erase {
+
+/* 지우기는 글자가 들어가므로 정사각 타일보다 넓게 두고 줄바꿈을 막는다.
+   선택자에 .tile을 함께 적는 이유: 아래 미디어쿼리의 .tile 규칙이
+   순서상 뒤에 오기 때문에, 한 클래스만 쓰면 글자 크기를 덮어써 버린다. */
+.tile.tile--erase {
+  width: auto;
+  min-width: 76px;
+  padding: 0 12px;
   font-family: var(--body);
   font-size: 15px;
   font-weight: 700;
+  white-space: nowrap;
   background: var(--paper);
 }
 
@@ -828,7 +857,12 @@ body {
     gap: 0 16px;
     align-items: start;
   }
-  .plate { grid-column: 1; grid-row: 1 / span 2; height: min(54vh, 400px); position: sticky; top: 0; }
+  /* 너비만 키운다. 높이까지 지정하면 aspect-ratio가 무시돼 카드가 세로로 늘어난다. */
+  .plate {
+    grid-column: 1; grid-row: 1 / span 2;
+    width: min(300px, 34vw);
+    position: sticky; top: 0;
+  }
   .rule--tight { grid-column: 2; grid-row: 1; margin-top: 0; }
   .clues { grid-column: 2; grid-row: 2; }
   .clue-text { font-size: 22px; }

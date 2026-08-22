@@ -80,10 +80,6 @@
       // 차례로 나타나게 해서 위에서 아래로 읽도록 유도한다
       row.style.animationDelay = `${Math.min(i, 8) * 45}ms`;
 
-      // 타입 행은 왼쪽 띠에 그 타입 색을 얹는다(문장이 이미 타입을 말한다)
-      if (c.kind === 'type') {
-        row.style.setProperty('--type', Data.typeColor(cur.p.types[0]));
-      }
       row.appendChild(el('p', 'clue-text', c.text));
       row.appendChild(el('span', 'clue-tag', c.label));
       box.appendChild(row);
@@ -173,6 +169,18 @@
       cur.slots[i] = null;
       delete cur.fill[i];
     }
+  }
+
+  /** 카드 아래 타입 띠 — 타입은 이미 알려 주는 단서이므로 문제를 푸는 동안에도 보인다 */
+  function renderPlateTypes() {
+    const box = $('#plate-types');
+    box.innerHTML = '';
+    cur.p.types.forEach((t) => {
+      const chip = el('span', 'plate-chip', t);
+      chip.style.background = Data.typeColor(t);
+      chip.style.color = Data.typeTextColor(t);
+      box.appendChild(chip);
+    });
   }
 
   /* ---------- 판 공개 ---------- */
@@ -451,6 +459,7 @@
     $('#plate-no').textContent = 'No. ???';
 
     renderBar();
+    renderPlateTypes();
     renderClues();
     renderSlots();
     renderTiles();
