@@ -235,21 +235,6 @@
         ),
       );
     }
-    if (p.moves && p.moves.length) {
-      const box = el('div', 'row');
-      box.appendChild(el('div', 'row-key', '쓸 수 있는 기술'));
-      p.moves.forEach((m) => {
-        box.appendChild(
-          el(
-            'div',
-            'row-value',
-            `${m.name} — ${m.type}${m.power ? `, 위력 ${m.power}` : ''}` +
-              `${m.level ? `, 레벨 ${m.level}에 배움` : ''}`,
-          ),
-        );
-      });
-      rows.appendChild(box);
-    }
     const evo = evoLine(p);
     if (evo) {
       const box = el('div', 'row');

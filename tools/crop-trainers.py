@@ -4,7 +4,11 @@
 
 배경만 지우려면 '흰색을 다 지우기'로는 안 된다 — 옷·신발·눈의 흰색까지 뚫린다.
 그래서 이미지 테두리에서 시작해 연결된 흰 영역만 번지듯 훑어(flood fill) 지운다.
-결과: images/trainer/01.webp ~ 20.webp (투명 배경, 높이 256px)
+
+20명을 **같은 배율**로 줄여 **같은 크기 캔버스**에 담고, 바닥(발끝)을 맞춰 놓는다.
+가장 큰 캐릭터가 OUT_H 에 꽉 차고 나머지는 그만큼 작게 보인다 —
+캐릭터마다 따로 늘리면 키 비율이 뒤죽박죽이 되고, 고르는 화면의 칸 높이도 어긋난다.
+결과: images/trainer/01.webp ~ 20.webp (모두 같은 크기, 투명 배경)
 """
 import pathlib
 import sys
@@ -109,35 +113,49 @@ def main():
     for f in OUT_DIR.glob("*.webp"):
         f.unlink()
 
-    n = 0
-    sizes = []
-    for r, (y0, y1) in enumerate(row_bands):
-        for c, (x0, x1) in enumerate(col_bands):
+    # 1차: 칸마다 내용이 꼭 맞는 범위를 구한다 (아직 자르지 않는다)
+    boxes = []
+    for (y0, y1) in row_bands:
+        for (x0, x1) in col_bands:
             cell = content[y0:y1, x0:x1]
             if not cell.any():
                 continue
-            # 칸 안에서 실제 내용만 꼭 맞게 다시 자른다
             ys = np.where(cell.any(axis=1))[0]
             xs = np.where(cell.any(axis=0))[0]
-            top, bot = y0 + ys[0], y0 + ys[-1] + 1
-            left, right = x0 + xs[0], x0 + xs[-1] + 1
-            top = max(0, top - PAD)
-            left = max(0, left - PAD)
-            bot = min(img.height, bot + PAD)
-            right = min(img.width, right + PAD)
+            boxes.append((y0 + ys[0], y0 + ys[-1] + 1, x0 + xs[0], x0 + xs[-1] + 1))
 
-            piece = Image.fromarray(rgba[top:bot, left:right], "RGBA")
-            scale = OUT_H / piece.height
-            # 픽셀아트라서 NEAREST로 줄여 또렷함을 유지한다
-            piece = piece.resize(
-                (max(1, round(piece.width * scale)), OUT_H), Image.NEAREST)
-            n += 1
-            piece.save(OUT_DIR / f"{n:02d}.webp", "WEBP", quality=92, method=5)
-            sizes.append((n, piece.width, piece.height))
+    if not boxes:
+        print("잘라낼 캐릭터를 찾지 못했습니다.")
+        return 1
+
+    # 2차: 가장 큰 캐릭터를 기준으로 공통 배율과 공통 캔버스 크기를 정한다
+    max_h = max(b[1] - b[0] for b in boxes)
+    max_w = max(b[3] - b[2] for b in boxes)
+    scale = OUT_H / max_h
+    canvas_w = max(1, round(max_w * scale)) + PAD * 2
+    canvas_h = OUT_H + PAD
+    print(f"기준: 가장 큰 캐릭터 {max_w}x{max_h}px → 배율 {scale:.3f}, 캔버스 {canvas_w}x{canvas_h}")
+
+    n = 0
+    heights = []
+    for (top, bot, left, right) in boxes:
+        piece = Image.fromarray(rgba[top:bot, left:right], "RGBA")
+        w = max(1, round(piece.width * scale))
+        h = max(1, round(piece.height * scale))
+        # 픽셀아트라서 NEAREST로 줄여 또렷함을 유지한다
+        piece = piece.resize((w, h), Image.NEAREST)
+
+        # 같은 크기 캔버스에 가로 가운데·바닥 맞춰 붙인다 (발끝이 한 줄에 놓인다)
+        out = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        out.alpha_composite(piece, ((canvas_w - w) // 2, canvas_h - PAD - h))
+
+        n += 1
+        out.save(OUT_DIR / f"{n:02d}.webp", "WEBP", quality=92, method=5)
+        heights.append(h)
 
     total = sum(f.stat().st_size for f in OUT_DIR.glob("*.webp"))
     print(f"\n저장: {n}명 → {OUT_DIR.relative_to(ROOT)}  합계 {total / 1024:.0f} KB")
-    print("크기: " + ", ".join(f"{i}:{w}x{h}" for i, w, h in sizes[:5]) + " ...")
+    print(f"모두 {canvas_w}x{canvas_h}px 동일 · 캐릭터 키 {min(heights)}~{max(heights)}px (바닥 정렬)")
     return 0
 
 

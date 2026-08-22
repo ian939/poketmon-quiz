@@ -117,18 +117,18 @@
     return `${josa.ira(open[0])}는 특성을 가지고 있어.`;
   }
 
-  function moveHint(p) {
-    const names = (p.moves || []).map((m) => m.name);
-    if (!names.length) return null;
-    if (names.length === 1) return `${josa.eul(names[0])} 쓸 수 있어!`;
-    return `${names.slice(0, 3).join(', ')} 같은 기술을 쓸 수 있어!`;
+  // '레벨 36이 되면' 같은 게임 수치는 책에도 없고 아이에게 필요하지도 않다
+  function softenCondition(c) {
+    if (!c) return null;
+    return /레벨/.test(c) ? '더 자라면' : c;
   }
 
   function evoHint(p) {
-    const { from, to, condition } = p.evo || {};
+    const { from, to } = p.evo || {};
+    const condition = softenCondition((p.evo || {}).condition);
     const parts = [];
     if (from) {
-      // condition 자체가 "레벨 36이 되면" 같은 조건절이므로 뒤를 '진화한 모습'으로 맺는다
+      // condition 은 "더 자라면" 같은 조건절이므로 뒤를 '진화한 모습'으로 맺는다
       parts.push(
         condition
           ? `${josa.i(from)} ${condition} 진화한 모습이 바로 나야.`
@@ -186,7 +186,6 @@
     add('크기', sizeHint(p));
     add('고향', homeHint(p));
     add('특성', abilityHint(p));
-    add('기술', moveHint(p));
     add('진화', evoHint(p));
     add('특별', specialHint(p));
     add('책', bookHint(p), 'book');

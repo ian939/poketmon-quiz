@@ -164,6 +164,8 @@ body {
   height: clamp(84px, 21vw, 128px);
   width: auto;
   margin: 0 auto;
+  object-fit: contain;
+  object-position: bottom center;
   /* 픽셀아트라서 부드럽게 늘리면 뭉개진다 */
   image-rendering: pixelated;
   filter: drop-shadow(3px 3px 0 rgba(33, 29, 22, .22));
@@ -242,11 +244,15 @@ body {
   gap: 8px;
 }
 
+/* 캐릭터 그림은 20장 모두 같은 크기(공통 배율·바닥 정렬)로 잘라 두었다.
+   그림을 흐름에서 빼 두어야 카드가 aspect-ratio 를 지킨다 —
+   그리드 항목으로 두면 그림의 원본 높이가 칸을 늘려 카드 높이가 저마다 달라진다. */
 .trainer {
-  display: grid;
-  place-items: center;
-  padding: 8px 4px;
+  position: relative;
+  display: block;
+  padding: 0;
   aspect-ratio: 3 / 4;
+  overflow: hidden;
   background: var(--paper);
   border: 3px solid var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
@@ -254,8 +260,14 @@ body {
 }
 .trainer:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 .trainer img {
-  max-width: 100%;
-  max-height: 100%;
+  position: absolute;
+  top: 6px;
+  left: 5px;
+  width: calc(100% - 10px);
+  height: calc(100% - 12px);
+  object-fit: contain;
+  /* 발끝을 카드 아래에 붙여 모든 칸의 바닥선을 맞춘다 */
+  object-position: bottom center;
   /* 픽셀아트라서 부드럽게 늘리면 뭉개진다 */
   image-rendering: pixelated;
 }
