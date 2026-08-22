@@ -16,6 +16,7 @@
     setup: '나를 정하자',
     home: '포켓몬 도감 퀴즈',
     quiz: '누구일까',
+    sentence: '문장 맞추기',
     dex: '내 도감',
     badge: '배지와 기록',
   };
@@ -160,6 +161,7 @@
     const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
     $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
     $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;
+    $('#menu-sent-count').textContent = `${Save.sentenceCount()}문장`;
     const meta = $('#profile-meta');
     if (meta) meta.textContent = p ? p.name : '';
 
@@ -312,6 +314,10 @@
     $('#btn-badge').onclick = () => {
       Dex.renderBadges();
       show('badge');
+    };
+    $('#btn-sentence').onclick = () => {
+      show('sentence');
+      window.Sentence.start();
     };
     $('#btn-back').onclick = goHome;
     $('#btn-reset').onclick = confirmReset;

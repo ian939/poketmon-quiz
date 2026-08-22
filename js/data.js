@@ -226,6 +226,53 @@
     return cards;
   }
 
+  /* ---------- 문장 조립용 후보 ----------
+   * 도감 설명을 문장으로 나누고, 어절 타일로 만들기 좋은 것만 남긴다.
+   *   - 3~6어절 (7어절 이상은 타일이 너무 많다)
+   *   - 제 이름이 든 문장은 제외 (○○○를 섞으면 어색하다)
+   *   - 같은 어절이 두 번 나오는 문장은 제외 (어느 타일이든 맞아 판정이 흐릿하다)
+   *   - 끝 마침표는 떼어 낸다 — 타일에 '…다.' 가 보이면 마지막 어절이 드러난다
+   * 후보 728개 / 552마리. */
+  const SENT_MIN = 3;
+  const SENT_MAX = 6;
+
+  /** 문장 단위로 나눈다 (정규식 lookbehind 는 옛 사파리에서 안 되므로 직접 자른다) */
+  function splitSentences(text) {
+    const out = [];
+    let buf = '';
+    for (const ch of String(text || '')) {
+      buf += ch;
+      if (ch === '.' || ch === '!' || ch === '?') {
+        out.push(buf.trim());
+        buf = '';
+      }
+    }
+    if (buf.trim()) out.push(buf.trim());
+    return out.filter(Boolean);
+  }
+
+  const sentenceCache = new Map();
+
+  /** 포켓몬 하나의 문장 후보 — [{ words: [...], text: '원문' }, ...] */
+  function sentencesFor(p) {
+    if (!p) return [];
+    if (sentenceCache.has(p.id)) return sentenceCache.get(p.id);
+    const out = [];
+    splitSentences(p.flavor).forEach((raw) => {
+      if (raw.indexOf(p.name) >= 0) return;
+      const bare = raw.replace(/[.!?]+$/, '').trim();
+      const words = bare.split(/\s+/).filter(Boolean);
+      if (words.length < SENT_MIN || words.length > SENT_MAX) return;
+      if (new Set(words).size !== words.length) return;
+      out.push({ words, text: bare });
+    });
+    sentenceCache.set(p.id, out);
+    return out;
+  }
+
+  /** 문장 후보가 있는 포켓몬인지 */
+  const hasSentence = (p) => sentencesFor(p).length > 0;
+
   /* ---------- 함정 글자 풀 ---------- */
   // 실제 포켓몬 이름에 쓰이는 글자만 모아 그럴듯하게 보이도록 한다
   const syllablePool = (function () {
@@ -263,6 +310,8 @@
     total: all.length,
     bookPage: (name) => bookPages[name] || null,
     hintsFor,
+    sentencesFor,
+    hasSentence,
     typeColor: (t) => TYPE_COLORS[t] || '#9e9e9e',
     typeTextColor: (t) => textOn(TYPE_COLORS[t] || '#9e9e9e'),
     typeNote: (t) => TYPE_NOTES[t] || '',
