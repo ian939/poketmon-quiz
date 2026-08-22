@@ -17,6 +17,7 @@
     home: '포켓몬 도감 퀴즈',
     quiz: '누구일까',
     sentence: '문장 맞추기',
+    book: '책이랑 찾기',
     dex: '내 도감',
     badge: '배지와 기록',
   };
@@ -162,6 +163,7 @@
     $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
     $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;
     $('#menu-sent-count').textContent = `${Save.sentenceCount()}문장`;
+    $('#menu-book-count').textContent = `${Save.caughtFrom('book')}마리 찾음`;
     const meta = $('#profile-meta');
     if (meta) meta.textContent = p ? p.name : '';
 
@@ -318,6 +320,10 @@
     $('#btn-sentence').onclick = () => {
       show('sentence');
       window.Sentence.start();
+    };
+    $('#btn-book').onclick = () => {
+      show('book');
+      window.Book.start();
     };
     $('#btn-back').onclick = goHome;
     $('#btn-reset').onclick = confirmReset;

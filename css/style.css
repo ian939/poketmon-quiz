@@ -777,6 +777,60 @@ body {
   .sent-work { flex: 1 1 auto; min-width: 0; }
 }
 
+/* ---------- 책이랑 찾기 ---------- */
+/* 그림·질문·안내를 세로 가운데로 모은다 */
+#book-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.book-art {
+  flex: 0 0 auto;
+  width: min(48vw, 230px);
+  height: min(48vw, 230px);
+  object-fit: contain;
+  margin: 0 auto;
+}
+/* 쪽수는 이 놀이의 핵심이라 가장 크게 */
+.book-ask {
+  flex: 0 0 auto;
+  margin: 8px 0 6px;
+  text-align: center;
+  font-family: var(--display);
+  font-size: clamp(22px, 5.4vw, 34px);
+  line-height: 1.25;
+  color: var(--ink);
+  word-break: keep-all;
+}
+.book-hint {
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: center;
+  font-family: var(--body);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--vermilion-2);
+  min-height: 24px;
+  word-break: keep-all;
+}
+/* 도망이 없으니 남은 기회 대신 틀린 횟수를 글로 알려 준다 */
+.book-tries {
+  margin-left: auto;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vermilion-2);
+}
+
+/* 가로 화면: 그림은 왼쪽, 질문은 오른쪽 */
+@media (min-aspect-ratio: 1/1) and (min-width: 760px) {
+  #book-body { flex-direction: row; align-items: center; gap: 24px; }
+  .book-art { width: min(30vw, 280px); height: min(30vw, 280px); }
+  .book-ask, .book-hint { text-align: left; }
+  #book-body > .book-ask { flex: 1 1 auto; }
+}
+
 /* ---------- 도감 ---------- */
 .tabs {
   flex: 0 0 auto;
