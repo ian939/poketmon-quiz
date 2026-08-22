@@ -8,11 +8,16 @@
   const empty = () => ({
     v: 2,
     profile: null,  // { trainer: 1~20, name: '이름' } — 처음 시작할 때 정한다
-    caught: {},     // id -> { at, misses }
+    caught: {},     // id -> { at, misses, src } — src: 'quiz' | 'book'
     escaped: {},    // id -> 도망간 횟수 (다시 출제 대상)
     badges: {},     // "물:gold" -> 획득 시각
+    lines: {},      // "line:001" -> 진화 라인을 다 모은 시각
     milestones: [], // 이미 축하한 마일스톤
-    stats: { streak: 0, bestStreak: 0, quizzes: 0, startedAt: Date.now() },
+    stats: {
+      streak: 0, bestStreak: 0, quizzes: 0,
+      sentences: 0,           // 문장 조립으로 완성한 문장 수
+      startedAt: Date.now(),
+    },
     settings: { muted: false },
   });
 
@@ -37,6 +42,7 @@
         caught: parsed.caught || {},
         escaped: parsed.escaped || {},
         badges,
+        lines: parsed.lines || {},
         milestones: parsed.milestones || [],
         stats: { ...base.stats, ...(parsed.stats || {}) },
         settings: { ...base.settings, ...(parsed.settings || {}) },
@@ -69,9 +75,10 @@
     caughtCount: () => Object.keys(state.caught).length,
     caughtIds: () => Object.keys(state.caught).map(Number),
 
-    markCaught(id, misses) {
+    /** src: 'quiz'(단서 퀴즈) | 'book'(책에서 찾기) — 기록 화면에서 따로 센다 */
+    markCaught(id, misses, src) {
       if (!Save.isCaught(id)) {
-        state.caught[id] = { at: Date.now(), misses: misses || 0 };
+        state.caught[id] = { at: Date.now(), misses: misses || 0, src: src || 'quiz' };
       }
       delete state.escaped[id];
       state.stats.quizzes += 1;
@@ -100,6 +107,33 @@
       state.profile = { trainer: Number(trainer), name: String(name).trim().slice(0, 8) };
       persist();
     },
+
+    /** 특정 방법으로 잡은 마리 수 */
+    caughtFrom(src) {
+      let n = 0;
+      for (const k of Object.keys(state.caught)) {
+        if ((state.caught[k].src || 'quiz') === src) n += 1;
+      }
+      return n;
+    },
+
+    /* 진화 라인 완성 */
+    hasLine: (key) => Object.prototype.hasOwnProperty.call(state.lines, key),
+    awardLine(key) {
+      if (!key || Save.hasLine(key)) return false;
+      state.lines[key] = Date.now();
+      persist();
+      return true;
+    },
+    lineCount: () => Object.keys(state.lines).length,
+
+    /* 문장 조립 기록 */
+    addSentence() {
+      state.stats.sentences = (state.stats.sentences || 0) + 1;
+      persist();
+      return state.stats.sentences;
+    },
+    sentenceCount: () => state.stats.sentences || 0,
 
     hasBadge: (key) => Object.prototype.hasOwnProperty.call(state.badges, key),
     awardBadge(key) {

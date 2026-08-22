@@ -70,6 +70,40 @@
     return ra - rb || a.id - b.id;
   });
 
+  const byName = new Map(all.map((p) => [p.name, p]));
+
+  /* ---------- 진화 ----------
+   * evo.from 은 이름이라 id 로 바꿔 쓴다. lineIds 의 '바로 앞'을 쓰면 안 된다 —
+   * 이브이 계열처럼 갈라지는 진화는 [이브이, 샤미드, 쥬피썬더 …] 로 평탄화돼 있어서
+   * 쥬피썬더의 앞이 샤미드로 잡힌다. */
+  function evoFromId(p) {
+    const from = p.evo && p.evo.from;
+    if (!from) return null;
+    const prev = byName.get(from);
+    return prev ? prev.id : null;
+  }
+
+  /** 진화 라인의 대표 키 — 라인 안 가장 작은 도감 번호 */
+  function lineKey(p) {
+    const ids = (p.evo && p.evo.lineIds) || [];
+    if (ids.length < 2) return null;
+    return `line:${String(Math.min.apply(null, ids)).padStart(3, '0')}`;
+  }
+
+  // 2단계 이상인 진화 라인의 개수 (기록 화면의 분모)
+  const EVO_LINES = (function () {
+    const keys = new Set();
+    all.forEach((p) => {
+      const k = lineKey(p);
+      if (k) keys.add(k);
+    });
+    return keys.size;
+  })();
+
+  /* ---------- 전설·환상 ---------- */
+  const isSpecial = (p) => !!(p && (p.legendary || p.mythical));
+  const SPECIALS = all.filter(isSpecial).length;
+
   /** 배경색이 밝으면 검은 글자, 어두우면 흰 글자 (읽기 대비 확보) */
   function textOn(hex) {
     const c = String(hex).replace('#', '');
@@ -218,7 +252,13 @@
     MILESTONES,
     syllablePool,
     get: (id) => byId.get(Number(id)),
+    getByName: (name) => byName.get(name) || null,
     inType: (type) => byType.get(type) || [],
+    evoFromId,
+    lineKey,
+    isSpecial,
+    EVO_LINES,
+    SPECIALS,
     typeSize: (type) => (byType.get(type) || []).length,
     total: all.length,
     bookPage: (name) => bookPages[name] || null,

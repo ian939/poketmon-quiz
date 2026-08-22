@@ -246,13 +246,21 @@
     openPlate();
 
     const p = cur.p;
-    Save.markCaught(p.id, cur.misses);
-    const rewards = Dex.claimRewards();
+    // 진화 판정은 '잡기 전에' 해야 한다 — 이전 단계를 이미 갖고 있었는지가 기준
+    const fromId = Data.evoFromId(p);
+    const evolvedFrom = fromId && Save.isCaught(fromId) ? Data.get(fromId) : null;
+
+    Save.markCaught(p.id, cur.misses, 'quiz');
+    const rewards = Dex.claimRewards(p);
 
     // 모습을 보여 준 뒤 이름을 따라 써야 다음으로 넘어간다 (쓰기 연습)
     setTimeout(() => {
       renderBar();
-      window.Write.open(p.name, () => throwBall(p, rewards));
+      window.Write.open(p.name, () => window.Catch.play(p, rewards, {
+        evolvedFrom,
+        onDone: nextQuestion,
+        onStop: () => window.App.goHome(),
+      }));
     }, 950);
   }
 
@@ -296,125 +304,6 @@
       window.App.openOverlay(sheet, { sticky: true });
       busy = false;
     }, 750);
-  }
-
-  /* ---------- 포획 연출 ---------- */
-  function throwBall(p, rewards) {
-    const sheet = el('div');
-    const ball = el('div', 'ball is-thrown');
-    sheet.appendChild(ball);
-    sheet.appendChild(el('p', 'sheet-text', '몬스터볼을 던졌다!'));
-    window.App.openOverlay(sheet, { sticky: true });
-    Sound.catchBall();
-
-    setTimeout(() => {
-      ball.classList.remove('is-thrown');
-      ball.classList.add('is-wobbling');
-    }, 510);
-
-    setTimeout(() => {
-      Sound.caught();
-      showRecord(p, rewards);
-    }, 1750);
-  }
-
-  /** 도감에 새로 채워진 기록 카드 */
-  function showRecord(p, rewards) {
-    const t = Dex.totalProgress();
-    const sheet = el('div');
-    sheet.appendChild(el('p', 'sheet-eyebrow', '도감에 등록'));
-    sheet.appendChild(el('h2', 'sheet-title', p.name));
-    const art = el('img', 'sheet-art');
-    art.src = p.img;
-    art.alt = p.name;
-    sheet.appendChild(art);
-
-    const chips = el('div', 'clue-chips');
-    chips.style.justifyContent = 'center';
-    p.types.forEach((tp) => {
-      const chip = el('span', 'chip', tp);
-      chip.style.background = Data.typeColor(tp);
-      chips.appendChild(chip);
-    });
-    sheet.appendChild(chips);
-
-    sheet.appendChild(
-      el('p', 'sheet-data', `No. ${String(p.id).padStart(3, '0')} · 내 도감 ${t.caught} / ${t.total}`),
-    );
-
-    const buttons = el('div', 'sheet-buttons');
-    const next = el('button', 'btn btn--go', '다음 포켓몬');
-    next.onclick = () => {
-      window.App.closeOverlay();
-      afterRewards(rewards, nextQuestion);
-    };
-    const detail = el('button', 'btn', '자세히 보기');
-    detail.onclick = () => Dex.openDetail(p.id);
-    const stop = el('button', 'btn', '그만하기');
-    stop.onclick = () => {
-      window.App.closeOverlay();
-      afterRewards(rewards, () => window.App.goHome());
-    };
-    buttons.appendChild(next);
-    buttons.appendChild(detail);
-    buttons.appendChild(stop);
-    sheet.appendChild(buttons);
-
-    // 몬스터볼 창을 이 카드로 갈아 끼운다(밑에 남겨 두면 닫을 때 되살아난다)
-    window.App.replaceOverlay(sheet, { sticky: true });
-    busy = false;
-  }
-
-  /** 보상 축하창을 하나씩 보여 준 뒤 done() 실행 */
-  function afterRewards(rewards, done) {
-    const queue = (rewards || []).slice();
-    let opened = false;
-
-    function step() {
-      // 앞서 띄운 축하창을 반드시 닫는다(안 닫으면 오버레이가 화면을 계속 덮는다)
-      if (opened) {
-        window.App.closeOverlay();
-        opened = false;
-      }
-      if (!queue.length) {
-        done();
-        return;
-      }
-      const ev = queue.shift();
-      const sheet = el('div');
-
-      if (ev.type === 'badge') {
-        Sound.fanfare();
-        const stamp = el('div', 'stamp', ev.tier.mark);
-        stamp.style.setProperty('--stamp', ev.tier.color);
-        sheet.appendChild(stamp);
-        sheet.appendChild(el('p', 'sheet-eyebrow', '배지 획득'));
-        sheet.appendChild(el('h2', 'sheet-title', `${ev.group} ${ev.tier.label}`));
-        sheet.appendChild(
-          el(
-            'p',
-            'sheet-text',
-            ev.tier.ratio >= 1
-              ? `${ev.group} 타입을 전부 모았어!`
-              : `${ev.group} 타입의 ${Math.round(ev.tier.ratio * 100)}%를 모았어.`,
-          ),
-        );
-      } else {
-        Sound.fanfare();
-        sheet.appendChild(el('p', 'sheet-eyebrow', '기념'));
-        sheet.appendChild(el('h2', 'sheet-title', `${ev.n}마리 달성`));
-        sheet.appendChild(el('p', 'sheet-text', `벌써 ${ev.n}마리를 모았어. 대단해!`));
-      }
-
-      const buttons = el('div', 'sheet-buttons');
-      const ok = el('button', 'btn btn--go', '좋아');
-      ok.onclick = step;
-      buttons.appendChild(ok);
-      sheet.appendChild(buttons);
-      window.App.openOverlay(sheet, { sticky: true });
-      opened = true;
-    }
-    step();
   }
 
   /* ---------- 안내 말풍선 ---------- */

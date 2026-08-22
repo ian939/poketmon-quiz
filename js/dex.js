@@ -20,6 +20,13 @@
     return { caught, total: list.length, ratio: list.length ? caught / list.length : 0 };
   }
 
+  /** 잡은 전설·환상 마리 수 */
+  function specialCaught() {
+    let n = 0;
+    for (const p of Data.all) if (Data.isSpecial(p) && Save.isCaught(p.id)) n += 1;
+    return n;
+  }
+
   function totalProgress() {
     const caught = Save.caughtCount();
     return { caught, total: Data.total, ratio: caught / Data.total };
@@ -30,10 +37,11 @@
   const progressOf = (tab) => (tab === ALL ? totalProgress() : typeProgress(tab));
 
   /**
-   * 잡은 뒤 새로 생긴 보상을 모아 돌려준다. (타입 배지 / 전체 마일스톤)
-   * 챕터 잠금이 없으므로 해제 보상은 없다.
+   * 잡은 뒤 새로 생긴 보상을 모아 돌려준다.
+   * (타입 배지 / 진화 라인 완성 / 전체 마일스톤) 챕터 잠금이 없으므로 해제 보상은 없다.
+   * justCaught: 방금 잡은 포켓몬 — 진화 라인 완성을 판정하는 데 쓴다.
    */
-  function claimRewards() {
+  function claimRewards(justCaught) {
     const events = [];
 
     // 타입 배지: 20% / 50% / 100%
@@ -50,6 +58,16 @@
       });
       if (top) events.push({ type: 'badge', group: type, tier: top });
     });
+
+    // 진화 라인 완성 — 방금 잡은 포켓몬의 라인이 다 찼는지 본다
+    if (justCaught) {
+      const key = Data.lineKey(justCaught);
+      const ids = (justCaught.evo && justCaught.evo.lineIds) || [];
+      if (key && ids.length >= 2 && ids.every((id) => Save.isCaught(id))
+          && Save.awardLine(key)) {
+        events.push({ type: 'line', pokemon: justCaught, ids });
+      }
+    }
 
     // 전체 마일스톤 — 마찬가지로 새로 넘은 것 중 가장 큰 것만 축하한다
     const caughtAll = Save.caughtCount();
@@ -139,15 +157,17 @@
       const known = Save.isCaught(p.id);
       // 아직 못 잡은 칸은 모습을 보여 주지 않는다 — 퀴즈에서 가리는 것과 같은 규칙이어야
       // 도감을 뒤져 답을 찾는 일이 없다.
+      // 전설·환상은 잡기 전에도 금테로 표시한다 — '여기 특별한 게 숨어 있다'는 예고
+      const gold = Data.isSpecial(p) ? ' is-special' : '';
       if (!known) {
-        const cell = el('div', 'cell');
+        const cell = el('div', `cell${gold}`);
         cell.appendChild(el('span', 'cell-q', '?'));
         cell.appendChild(el('span', 'cell-no', `No.${pad3(p.id)}`));
         cell.appendChild(el('span', 'cell-name', '???'));
         frag.appendChild(cell);
         return;
       }
-      const cell = el('button', 'cell is-known');
+      const cell = el('button', `cell is-known${gold}`);
       const img = el('img');
       img.src = p.img;
       img.alt = p.name;
@@ -279,6 +299,10 @@
     addStat(`${Math.round(t.ratio * 100)}%`, '도감 완성도');
     addStat(stats.bestStreak, '최고 연속 정답');
     addStat(`${Save.badgeKeys().length}/${badgeMax}`, '모은 배지');
+    addStat(`${Save.lineCount()}/${Data.EVO_LINES}`, '완성한 진화 라인');
+    addStat(`${specialCaught()}/${Data.SPECIALS}`, '전설·환상');
+    addStat(Save.sentenceCount(), '읽은 문장');
+    addStat(Save.caughtFrom('book'), '책에서 찾은 포켓몬');
 
     const grid = $('#badge-grid');
     grid.innerHTML = '';
@@ -306,6 +330,7 @@
     openDetail,
     typeProgress,
     totalProgress,
+    specialCaught,
     progressOf,
     listOf,
     claimRewards,

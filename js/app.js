@@ -42,12 +42,21 @@
       overlay.classList.remove('is-on');
       return;
     }
-    sheet.appendChild(stack[stack.length - 1].node);
+    const top = stack[stack.length - 1];
+    // variant 는 창의 결(예: 전설 포획 = 금색)을 바꾼다
+    sheet.className = `sheet${top.variant ? ` sheet--${top.variant}` : ''}`;
+    sheet.appendChild(top.node);
     overlay.classList.add('is-on');
   }
 
+  const entry = (node, opts) => ({
+    node,
+    sticky: !!(opts && opts.sticky),
+    variant: (opts && opts.variant) || null,
+  });
+
   function openOverlay(node, opts) {
-    stack.push({ node, sticky: !!(opts && opts.sticky) });
+    stack.push(entry(node, opts));
     paint();
   }
 
@@ -60,7 +69,7 @@
    *  openOverlay를 연달아 쓰면 앞 창이 밑에 남아 닫을 때 다시 나타난다. */
   function replaceOverlay(node, opts) {
     stack.pop();
-    stack.push({ node, sticky: !!(opts && opts.sticky) });
+    stack.push(entry(node, opts));
     paint();
   }
 

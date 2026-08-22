@@ -725,6 +725,10 @@ body {
 }
 .cell.is-known { background: var(--paper); cursor: pointer; }
 .cell.is-known:active { transform: translateY(2px); }
+/* 전설·환상은 잡기 전에도 금테 — '여기 특별한 게 숨어 있다'는 예고 */
+.cell.is-special { border-color: var(--edge); border-width: 4px; }
+.cell.is-special .cell-no::after { content: ' °5'; color: var(--edge); }
+.cell.is-special.is-known { background: #fffbec; }
 
 .cell img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
 .cell-q {
@@ -918,6 +922,73 @@ body {
   25% { transform: rotate(-15deg); }
   75% { transform: rotate(15deg); }
 }
+
+/* ---------- 진화 연출 ---------- */
+/* 두 그림을 겹쳐 두고 섬광이 가장 밝을 때 갈아 끼운다 */
+.evolve {
+  position: relative;
+  width: min(58vw, 200px);
+  aspect-ratio: 1;
+  margin: 6px auto 4px;
+  overflow: hidden;
+}
+.evolve-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity .25s ease, transform .5s cubic-bezier(.2, 1.4, .5, 1);
+}
+.evolve-art.is-after { opacity: 0; transform: scale(.86); }
+.evolve.is-evolved .evolve-art { opacity: 0; }
+.evolve.is-evolved .evolve-art.is-after { opacity: 1; transform: scale(1); }
+
+.evolve-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, #fff 0 45%, rgba(255, 255, 255, 0) 72%);
+  opacity: 0;
+  pointer-events: none;
+}
+.evolve.is-flashing .evolve-flash { animation: evolve-flash 1.2s ease-in-out; }
+@keyframes evolve-flash {
+  0% { opacity: 0; transform: scale(.7); }
+  35% { opacity: 1; transform: scale(1.25); }
+  60% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* ---------- 전설·환상 포획 카드 ---------- */
+.sheet--gold {
+  border-color: var(--edge);
+  box-shadow: 9px 9px 0 var(--edge), 0 0 0 4px var(--paper) inset;
+  background:
+    linear-gradient(160deg, #fffdf3 0%, #fdf3d4 55%, #fbeab5 100%);
+}
+.sheet--gold .sheet-eyebrow { color: #8a6a12; }
+.sheet--gold .sheet-title { color: #7a5c0d; }
+.sheet--gold .sheet-art {
+  filter: drop-shadow(0 0 14px rgba(217, 164, 40, .85));
+  animation: gold-glow 1.8s ease-in-out infinite;
+}
+@keyframes gold-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(217, 164, 40, .6)); }
+  50% { filter: drop-shadow(0 0 20px rgba(217, 164, 40, 1)); }
+}
+
+/* ---------- 진화 라인 가족사진 ---------- */
+.family {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 8px 0 4px;
+}
+.family-node { width: 62px; text-align: center; font-size: 11px; font-weight: 700; }
+.family-node img { width: 58px; height: 58px; object-fit: contain; display: block; margin: 0 auto; }
+.family-arrow { font-family: var(--mono); color: var(--ink-soft); align-self: center; }
 
 /* 상세 카드 */
 .detail-head { display: flex; align-items: center; gap: 12px; text-align: left; }
