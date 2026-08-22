@@ -249,9 +249,10 @@
     Save.markCaught(p.id, cur.misses);
     const rewards = Dex.claimRewards();
 
+    // 모습을 보여 준 뒤 이름을 따라 써야 다음으로 넘어간다 (쓰기 연습)
     setTimeout(() => {
       renderBar();
-      throwBall(p, rewards);
+      window.Write.open(p.name, () => throwBall(p, rewards));
     }, 950);
   }
 
