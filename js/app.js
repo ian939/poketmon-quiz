@@ -146,6 +146,46 @@
   }
 
   /* ---------- 홈 ---------- */
+
+  /** 트레이너 등급 — 도감 수가 늘면 자란다. 다음 등급까지 몇 마리인지 같이 보여 준다. */
+  function renderRank(caught) {
+    const r = Data.rankOf(caught);
+    const title = $('#rank-title');
+    title.textContent = r.rank.name;
+    title.style.color = r.rank.color;
+    $('#rank-step').textContent = `트레이너 ${r.step}단계 / ${r.steps} · 도감 ${caught}마리`;
+    $('#rank-fill').style.width = `${(r.ratio * 100).toFixed(1)}%`;
+    $('#rank-fill').style.background = (r.next || r.rank).color;
+    $('#rank-next').textContent = r.next
+      ? `${r.next.name}까지 ${r.need}마리 더!`
+      : '전국도감을 다 채웠다!';
+    $('#rank-bar').setAttribute('aria-label',
+      r.next ? `다음 등급까지 ${r.need}마리` : '마지막 등급');
+  }
+
+  /** 캐릭터 밑 배지 진열장 — 모은 배지가 늘어나면 눈에 보이게 쌓인다. */
+  function renderBadgecase() {
+    const row = $('#badgecase-row');
+    row.innerHTML = '';
+    let n = 0;
+    Data.typeNames.forEach((type) => {
+      Data.BADGE_TIERS.forEach((tier) => {
+        if (!Save.hasBadge(`${type}:${tier.key}`)) return;
+        n += 1;
+        const chip = el('i', 'bchip', tier.mark);
+        chip.style.setProperty('--bg', Data.typeColor(type));
+        chip.style.setProperty('--ring', tier.color);
+        chip.style.color = Data.typeTextColor(type);
+        chip.title = `${type} ${tier.label}`;
+        chip.setAttribute('aria-label', `${type} ${tier.label}`);
+        row.appendChild(chip);
+      });
+    });
+    const max = Data.typeNames.length * Data.BADGE_TIERS.length;
+    $('#badgecase-count').textContent = `${n} / ${max}`;
+    $('#badgecase').classList.toggle('is-empty', n === 0);
+    if (!n) row.appendChild(el('span', 'bchip-none', '타입을 20%만 모아도 첫 배지를 받아!'));
+  }
   function renderHome() {
     Dex.renderMosaic();
 
@@ -159,6 +199,9 @@
     }
 
     const t = Dex.totalProgress();
+    renderRank(t.caught);
+    renderBadgecase();
+
     const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
     $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
     $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;

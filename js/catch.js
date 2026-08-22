@@ -196,6 +196,19 @@
         sheet.appendChild(
           el('p', 'sheet-text', `${ev.ids.length}마리가 모두 도감에 들어왔어.`),
         );
+      } else if (ev.type === 'rank') {
+        Sound.fanfare();
+        const stamp = el('div', 'stamp', String(ev.info.step));
+        stamp.style.setProperty('--stamp', ev.rank.color);
+        sheet.appendChild(stamp);
+        sheet.appendChild(el('p', 'sheet-eyebrow', '트레이너 승급'));
+        sheet.appendChild(el('h2', 'sheet-title', ev.rank.name));
+        sheet.appendChild(
+          el('p', 'sheet-text', ev.info.next
+            ? `${ev.rank.at}마리를 모아서 자랐어!\n`
+              + `다음은 ${ev.info.next.name}, ${ev.info.need}마리 더!`
+            : '802마리를 모두 모았어.\n너는 전설의 트레이너야!'),
+        );
       } else {
         Sound.fanfare();
         sheet.appendChild(el('p', 'sheet-eyebrow', '기념'));

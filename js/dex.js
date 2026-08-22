@@ -69,8 +69,20 @@
       }
     }
 
-    // 전체 마일스톤 — 마찬가지로 새로 넘은 것 중 가장 큰 것만 축하한다
     const caughtAll = Save.caughtCount();
+
+    // 트레이너 등급 승급 — 새로 넘은 것 중 가장 높은 것만 축하한다.
+    // '시작 트레이너'(0마리)는 처음부터 갖고 있는 것이라 축하하지 않는다.
+    let topRank = null;
+    Data.TRAINER_RANKS.forEach((r, i) => {
+      if (caughtAll >= r.at && !Save.hasRank(r.name)) {
+        Save.markRank(r.name);
+        if (i > 0) topRank = r;
+      }
+    });
+    if (topRank) events.push({ type: 'rank', rank: topRank, info: Data.rankOf(caughtAll) });
+
+    // 전체 마일스톤 — 마찬가지로 새로 넘은 것 중 가장 큰 것만 축하한다
     let topMilestone = null;
     Data.MILESTONES.forEach((n) => {
       if (caughtAll >= n && !Save.hasMilestone(n)) {
@@ -78,7 +90,8 @@
         topMilestone = n;
       }
     });
-    if (topMilestone !== null) events.push({ type: 'milestone', n: topMilestone });
+    // 등급이 오른 날은 마일스톤 축하를 겹쳐 띄우지 않는다 (같은 '몇 마리' 이야기다)
+    if (topMilestone !== null && !topRank) events.push({ type: 'milestone', n: topMilestone });
 
     return events;
   }

@@ -13,6 +13,7 @@
     badges: {},     // "물:gold" -> 획득 시각
     lines: {},      // "line:001" -> 진화 라인을 다 모은 시각
     milestones: [], // 이미 축하한 마일스톤
+    ranks: [],      // 이미 축하한 트레이너 등급 (등급 이름)
     stats: {
       streak: 0, bestStreak: 0, quizzes: 0,
       sentences: 0,           // 문장 조립으로 완성한 문장 수
@@ -44,6 +45,7 @@
         badges,
         lines: parsed.lines || {},
         milestones: parsed.milestones || [],
+        ranks: parsed.ranks || [],
         stats: { ...base.stats, ...(parsed.stats || {}) },
         settings: { ...base.settings, ...(parsed.settings || {}) },
       };
@@ -143,6 +145,14 @@
       return true;
     },
     badgeKeys: () => Object.keys(state.badges),
+
+    hasRank: (name) => state.ranks.indexOf(name) !== -1,
+    markRank(name) {
+      if (!Save.hasRank(name)) {
+        state.ranks.push(name);
+        persist();
+      }
+    },
 
     hasMilestone: (n) => state.milestones.indexOf(n) !== -1,
     markMilestone(n) {

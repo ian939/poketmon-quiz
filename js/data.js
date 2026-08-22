@@ -123,6 +123,43 @@
 
   const MILESTONES = [1, 5, 10, 25, 50, 100, 150, 200, 300, 400, 500, 650, 802];
 
+/* 트레이너 등급 — 도감 수에 따라 8단계로 자란다.
+ * 초반 칸은 좁게(10·30) 잡아 시작하자마자 한 번 올라가 보게 하고,
+ * 뒤로 갈수록 넓혀 마지막 '전설'은 802마리 완성으로 둔다.
+ * 이름은 일곱 살이 읽을 수 있는 낱말만 썼다.
+ */
+  const TRAINER_RANKS = [
+    { at: 0, name: '시작 트레이너', color: '#9aa2a8' },
+    { at: 10, name: '새내기 트레이너', color: '#7fa86b' },
+    { at: 30, name: '씩씩한 트레이너', color: '#3f9b78' },
+    { at: 70, name: '멋진 트레이너', color: '#3a8cae' },
+    { at: 150, name: '뛰어난 트레이너', color: '#5567c2' },
+    { at: 300, name: '대단한 트레이너', color: '#8a54bd' },
+    { at: 550, name: '최고의 트레이너', color: '#cf3a2c' },
+    { at: 802, name: '전설의 트레이너', color: '#d9a428' },
+  ];
+
+  /**
+   * 지금 도감 수의 등급과 '다음 등급까지 몇 마리'를 알려 준다.
+   * ratio는 지금 등급 안에서의 진행률 — 막대 길이에 쓴다.
+   */
+  function rankOf(caught) {
+    let i = 0;
+    for (let k = 0; k < TRAINER_RANKS.length; k += 1) {
+      if (caught >= TRAINER_RANKS[k].at) i = k;
+    }
+    const rank = TRAINER_RANKS[i];
+    const next = TRAINER_RANKS[i + 1] || null;
+    const need = next ? next.at - caught : 0;
+    const span = next ? next.at - rank.at : 1;
+    return {
+      index: i, rank, next, need,
+      step: i + 1,
+      steps: TRAINER_RANKS.length,
+      ratio: next ? Math.min(1, (caught - rank.at) / span) : 1,
+    };
+  }
+
   /* ---------- 단서 문장 ---------- */
 
   function typeHint(p) {
@@ -297,6 +334,8 @@
     TYPE_COLORS,
     BADGE_TIERS,
     MILESTONES,
+    TRAINER_RANKS,
+    rankOf,
     syllablePool,
     get: (id) => byId.get(Number(id)),
     getByName: (name) => byName.get(name) || null,
