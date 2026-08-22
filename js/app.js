@@ -9,8 +9,11 @@
   const Quiz = window.Quiz;
 
   const RESET_WORD = '초기화';
+  const TRAINERS = 20;                 // images/trainer/01.webp ~ 20.webp
+  const trainerImg = (n) => `images/trainer/${String(n).padStart(2, '0')}.webp`;
 
   const TITLES = {
+    setup: '나를 정하자',
     home: '포켓몬 도감 퀴즈',
     quiz: '누구일까',
     dex: '내 도감',
@@ -22,8 +25,8 @@
     $$('.screen').forEach((s) => s.classList.remove('is-on'));
     const target = $(`#screen-${name}`);
     if (target) target.classList.add('is-on');
-    // 초기화는 홈에서만, 처음으로는 홈이 아닐 때만 보인다
-    $('#btn-back').classList.toggle('is-hidden', name === 'home');
+    // 초기화는 홈에서만, 처음으로는 홈·시작화면이 아닐 때만 보인다
+    $('#btn-back').classList.toggle('is-hidden', name === 'home' || name === 'setup');
     $('#btn-reset').classList.toggle('is-hidden', name !== 'home');
     $('#mast-title').textContent = TITLES[name] || TITLES.home;
   }
@@ -85,14 +88,71 @@
     return sheet;
   }
 
+  /* ---------- 처음 시작: 캐릭터와 이름 정하기 ---------- */
+  let pickedTrainer = null;
+
+  function renderSetup(editing) {
+    const grid = $('#trainer-grid');
+    const input = $('#setup-name');
+    const cancel = $('#setup-cancel');
+    const go = $('#setup-go');
+    const p = Save.profile;
+
+    pickedTrainer = editing && p ? p.trainer : null;
+    input.value = editing && p ? p.name : '';
+    go.textContent = editing ? '바꾸기' : '시작하기';
+    cancel.classList.toggle('is-hidden', !editing);
+
+    grid.innerHTML = '';
+    for (let n = 1; n <= TRAINERS; n += 1) {
+      const btn = el('button', `trainer${n === pickedTrainer ? ' is-on' : ''}`);
+      const img = el('img');
+      img.src = trainerImg(n);
+      img.alt = `${n}번 캐릭터`;
+      img.loading = 'lazy';
+      btn.appendChild(img);
+      btn.onclick = () => {
+        pickedTrainer = n;
+        $$('#trainer-grid .trainer').forEach((b, i) => b.classList.toggle('is-on', i + 1 === n));
+        Sound.tap();
+        paintSetupState();
+      };
+      grid.appendChild(btn);
+    }
+    paintSetupState();
+    show('setup');
+  }
+
+  function paintSetupState() {
+    const name = $('#setup-name').value.trim();
+    const ok = !!pickedTrainer && name.length > 0;
+    $('#setup-go').disabled = !ok;
+    const hint = $('#setup-hint');
+    hint.classList.toggle('is-ready', ok);
+    if (ok) hint.textContent = `좋아, ${name}! 이제 시작할 수 있어.`;
+    else if (!pickedTrainer) hint.textContent = '먼저 캐릭터를 골라 줘.';
+    else hint.textContent = '이름을 써 줘.';
+  }
+
   /* ---------- 홈 ---------- */
   function renderHome() {
     Dex.renderMosaic();
+
+    const p = Save.profile;
+    const img = $('#hero-trainer');
+    if (p) {
+      img.src = trainerImg(p.trainer);
+      img.alt = `${p.name}의 캐릭터`;
+      $('#hero-name').textContent = p.name;
+      $('#hero-me').title = '캐릭터와 이름 바꾸기';
+    }
 
     const t = Dex.totalProgress();
     const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
     $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
     $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;
+    const meta = $('#profile-meta');
+    if (meta) meta.textContent = p ? p.name : '';
 
     const grid = $('#type-list');
     grid.innerHTML = '';
@@ -153,6 +213,11 @@
 
   function goHome() {
     clearOverlays();
+    // 아직 캐릭터와 이름을 정하지 않았으면 그것부터
+    if (!Save.hasProfile()) {
+      renderSetup(false);
+      return;
+    }
     renderHome();
     show('home');
   }
@@ -215,8 +280,8 @@
       Sound.setMuted(Save.state.settings.muted);
       paintSound();
       closeOverlay();
+      // 프로필까지 지워지므로 캐릭터·이름 정하기 화면부터 다시 시작한다
       goHome();
-      openOverlay(buildNotice('처음부터 시작', '도감을 비웠어.\n다시 모아 보자!'));
     };
 
     openOverlay(sheet);
@@ -242,6 +307,22 @@
     $('#btn-back').onclick = goHome;
     $('#btn-reset').onclick = confirmReset;
 
+    // 캐릭터·이름 정하기
+    $('#setup-name').addEventListener('input', paintSetupState);
+    $('#setup-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !$('#setup-go').disabled) $('#setup-go').click();
+    });
+    $('#setup-go').onclick = () => {
+      const name = $('#setup-name').value.trim();
+      if (!pickedTrainer || !name) return;
+      Save.setProfile(pickedTrainer, name);
+      Sound.unlock();
+      goHome();
+    };
+    $('#setup-cancel').onclick = goHome;
+    $('#hero-me').onclick = () => renderSetup(true);
+    $('#btn-profile').onclick = () => renderSetup(true);
+
     $('#btn-sound').onclick = () => {
       const next = !Save.state.settings.muted;
       Save.setMuted(next);
@@ -266,7 +347,6 @@
   };
 
   bind();
-  renderHome();
-  show('home');
+  goHome();   // 프로필이 없으면 캐릭터·이름 정하기 화면부터 뜬다
   $('#loading').classList.add('is-hidden');
 })();

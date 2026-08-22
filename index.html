@@ -25,13 +25,43 @@
 
 <main id="screens">
 
+  <!-- ============ 처음 시작: 캐릭터와 이름 정하기 ============ -->
+  <section class="screen" id="screen-setup">
+    <div class="scroll">
+      <p class="rule">누구로 할까?</p>
+      <div class="trainer-grid" id="trainer-grid"></div>
+
+      <p class="rule">이름을 써 줘</p>
+      <input class="setup-input" id="setup-name" type="text" maxlength="8"
+             autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="내 이름" aria-label="내 이름">
+      <p class="setup-hint" id="setup-hint">캐릭터를 고르고 이름을 쓰면 시작할 수 있어.</p>
+
+      <div class="setup-buttons">
+        <button class="cta" id="setup-go">시작하기</button>
+        <button class="menu-row is-hidden" id="setup-cancel">
+          <span class="menu-label">그만두기</span>
+        </button>
+      </div>
+      <div style="height:14px"></div>
+    </div>
+  </section>
+
   <!-- ============ 홈 ============ -->
   <section class="screen is-on" id="screen-home">
     <div class="scroll">
 
       <div class="hero">
-        <p class="hero-eyebrow">전국도감 001 — 802</p>
-        <h2 class="hero-title">빈 칸을<br>채우자</h2>
+        <div class="hero-top">
+          <button class="hero-me" id="hero-me" title="내 캐릭터 바꾸기">
+            <img class="hero-me-img" id="hero-trainer" alt="내 캐릭터">
+            <span class="hero-me-name" id="hero-name"></span>
+          </button>
+          <div class="hero-text">
+            <p class="hero-eyebrow">전국도감 001 — 802</p>
+            <h2 class="hero-title">빈 칸을<br>채우자</h2>
+          </div>
+        </div>
         <div class="mosaic" id="mosaic" aria-label="도감 802칸 진행 상황"></div>
         <p class="hero-caption" id="mosaic-caption"></p>
       </div>
@@ -100,6 +130,12 @@
 
       <p class="rule">배지</p>
       <div class="badges" id="badge-grid"></div>
+
+      <p class="rule">내 캐릭터</p>
+      <button class="menu-row" id="btn-profile">
+        <span class="menu-label">캐릭터와 이름 바꾸기</span>
+        <span class="menu-meta" id="profile-meta"></span>
+      </button>
     </div>
   </section>
 

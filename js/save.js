@@ -7,6 +7,7 @@
   // 챕터 잠금은 없다 — 아이가 아무 타입이나 바로 고를 수 있다.
   const empty = () => ({
     v: 2,
+    profile: null,  // { trainer: 1~20, name: '이름' } — 처음 시작할 때 정한다
     caught: {},     // id -> { at, misses }
     escaped: {},    // id -> 도망간 횟수 (다시 출제 대상)
     badges: {},     // "물:gold" -> 획득 시각
@@ -32,6 +33,7 @@
         ...parsed,
         v: base.v,
         unlocked: undefined,
+        profile: parsed.profile && parsed.profile.name ? parsed.profile : null,
         caught: parsed.caught || {},
         escaped: parsed.escaped || {},
         badges,
@@ -88,6 +90,16 @@
     },
 
     escapedCount: (id) => state.escaped[id] || 0,
+
+    /* 내 캐릭터와 이름 */
+    get profile() {
+      return state.profile;
+    },
+    hasProfile: () => !!(state.profile && state.profile.name),
+    setProfile(trainer, name) {
+      state.profile = { trainer: Number(trainer), name: String(name).trim().slice(0, 8) };
+      persist();
+    },
 
     hasBadge: (key) => Object.prototype.hasOwnProperty.call(state.badges, key),
     awardBadge(key) {

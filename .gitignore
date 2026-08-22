@@ -8,6 +8,10 @@
 한글쓰기 샘플.html
 *샘플*.html
 
+# 캐릭터 원본 시트(6MB). tools/crop-trainers.py 가 여기서 images/trainer/ 를 만들고,
+# 게임은 잘라낸 결과만 쓴다.
+Gemini_Generated_Image*.png
+
 # 도구 의존성 (이미지 축소용 sharp — 필요할 때만 설치)
 node_modules/
 package.json
