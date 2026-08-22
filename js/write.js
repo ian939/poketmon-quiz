@@ -7,7 +7,9 @@
 (function () {
   'use strict';
 
-  const { el, $, Sound } = window.U;
+  // 쓰기 화면은 소리를 내지 않는다. 획마다 소리가 나면 한 이름에 스무 번 넘게
+  // 울려서 시끄럽다. 잘못 그었을 때는 흔들림과 안내문으로 알려 준다.
+  const { el, $ } = window.U;
 
   /* ================= 획 데이터 ================= */
   // 0~100 좌표계 (y는 아래로 증가)
@@ -450,7 +452,6 @@
     },
 
     nudge(msg) {
-      Sound.wrong();
       const pad = $('#write-pad');
       if (pad) {
         pad.classList.remove('shake');
@@ -486,7 +487,6 @@
           this.stall = 0;
           this.lastP = p;
           this.ink.push(p);
-          Sound.tap();
           return;
         }
         if (this.near(p, cps[0]) > reach) {
@@ -500,7 +500,6 @@
         this.stall = 0;
         this.lastP = p;
         this.dirSet = false;
-        Sound.tap();
         this.renderPad();
       });
 
@@ -587,7 +586,6 @@
       this.stall = 0;
       this.lastP = null;
       this.dirSet = false;
-      Sound.tap();
 
       if (this.si >= this.strokes.length) {
         this.finishChar();
@@ -607,7 +605,6 @@
 
     finishChar() {
       this.charDone = true;
-      Sound.correct();
       this.renderPad();
       this.say(`'${this.char}' 다 썼어!`);
 
@@ -623,9 +620,8 @@
         return;
       }
 
-      // 이름을 다 썼다
+      // 이름을 다 썼다 (곧 이어지는 몬스터볼 연출에 소리가 있으니 여기선 조용히)
       this.paintChars();
-      Sound.caught();
       this.say(`'${this.name}' 다 썼어! 잘했어!`);
       setTimeout(() => {
         const done = this.onDone;
