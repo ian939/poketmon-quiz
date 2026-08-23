@@ -37,6 +37,23 @@ html, body {
   color: var(--ink);
   background: var(--paper);
   -webkit-text-size-adjust: 100%;
+  /* 아이가 실수로 화면을 키우거나 줄이지 못하게.
+   * pan-x pan-y = 손가락으로 밀어 넘기는 것만 남기고
+   * 두 손가락 확대와 두 번 두드려 확대를 막는다. */
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
+  /* 길게 눌렀을 때 뜨는 복사·찾아보기 메뉴 막기 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 이름 쓰는 칸만 예외 — 글자를 고치려면 선택도 되어야 한다 */
+input, textarea {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
 }
 
 body {
@@ -1418,14 +1435,23 @@ body {
   0%, 100% { opacity: .35; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.12); }
 }
+/* 다 쓴 표시 — 가운데에 두면 방금 쓴 글자를 덮어 버려서 오른쪽 위 모서리에 둔다.
+ * 크기를 칸의 %로 잡아 두면 세로·가로 화면에서 저절로 맞는다. */
 .wr-ok {
-  position: absolute; inset: 0;
-  display: grid; place-items: center;
-  font-family: var(--display);
-  font-size: min(28vw, 20vh);
-  color: var(--jade);
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  width: 17%;
+  height: 17%;
   animation: wr-pop .45s ease;
   pointer-events: none;
+}
+.wr-ok path {
+  fill: none;
+  stroke: var(--jade);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 @keyframes wr-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
 

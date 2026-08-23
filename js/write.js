@@ -194,6 +194,10 @@
   }
 
   /* ================= 판정 기준 ================= */
+  // 다 썼다는 표시. 글자 위에 겹치지 않게 칸 오른쪽 위 모서리에 놓는다.
+  const OK_MARK = '<div class="wr-ok" aria-hidden="true">'
+    + '<svg viewBox="0 0 24 24"><path d="M4 13 L9.5 18.5 L20 6"/></svg></div>';
+
   const TUNE = {
     tol: 16,       // 체크포인트 인정 반경 (0~100 좌표계)
     offMax: 26,    // 경로에서 이만큼 벗어나면 그 획만 다시
@@ -410,7 +414,7 @@
         ink += `<path class="wr-ink" style="stroke-width:${pw}" d="${smoothD(this.ink)}"/>`;
       }
       pad.innerHTML = `<svg viewBox="0 0 100 100">${guide}${ink}${hints}</svg>` +
-        (this.charDone ? '<div class="wr-ok">✓</div>' : '');
+        (this.charDone ? OK_MARK : '');
     },
 
     /** 왼쪽 시범 — 획 순서대로 그려지는 모습을 계속 반복 재생 */
