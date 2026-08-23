@@ -301,7 +301,7 @@
       const words = bare.split(/\s+/).filter(Boolean);
       if (words.length < SENT_MIN || words.length > SENT_MAX) return;
       if (new Set(words).size !== words.length) return;
-      out.push({ words, text: bare });
+      out.push({ words, text: bare, raw });
     });
     sentenceCache.set(p.id, out);
     return out;
@@ -309,6 +309,16 @@
 
   /** 문장 후보가 있는 포켓몬인지 */
   const hasSentence = (p) => sentencesFor(p).length > 0;
+
+  /**
+   * 이 포켓몬의 '도감 채우기' 문장 — 후보 중 늘 첫 번째로 고정한다.
+   * 무작위로 고르면 도감 설명에 뚫린 빈칸과 출제되는 문장이 어긋난다.
+   * 후보가 없는 포켓몬(230마리)은 도감 설명이 처음부터 다 보인다.
+   */
+  function storySentence(p) {
+    const list = sentencesFor(p);
+    return list.length ? list[0] : null;
+  }
 
   /* ---------- 함정 글자 풀 ---------- */
   // 실제 포켓몬 이름에 쓰이는 글자만 모아 그럴듯하게 보이도록 한다
@@ -351,6 +361,7 @@
     hintsFor,
     sentencesFor,
     hasSentence,
+    storySentence,
     typeColor: (t) => TYPE_COLORS[t] || '#9e9e9e',
     typeTextColor: (t) => textOn(TYPE_COLORS[t] || '#9e9e9e'),
     typeNote: (t) => TYPE_NOTES[t] || '',

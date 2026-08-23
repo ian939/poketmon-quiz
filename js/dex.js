@@ -189,6 +189,12 @@
       cell.appendChild(img);
       cell.appendChild(el('span', 'cell-no', `No.${pad3(p.id)}`));
       cell.appendChild(el('span', 'cell-name', p.name));
+      // 문장 맞추기로 도감 설명을 채운 포켓몬은 왼쪽 위에 ★ 배지가 붙는다
+      if (Save.hasStory(p.id)) {
+        const mark = el('span', 'cell-story', '★');
+        mark.title = '도감 설명을 채웠어';
+        cell.appendChild(mark);
+      }
       cell.onclick = () => openDetail(p.id);
       frag.appendChild(cell);
     });
@@ -239,6 +245,38 @@
     return line;
   }
 
+  /**
+   * 도감 설명 — 아직 안 채운 문장은 빈칸으로 두고, 누르면 문장 맞추기로 보낸다.
+   * 도감이 '읽으면 채워지는 것'이 되어야 빈칸을 채우러 갈 이유가 생긴다.
+   */
+  function flavorValue(p) {
+    const s = Data.storySentence(p);
+    const box = el('div', 'row-value');
+    if (!s || Save.hasStory(p.id)) {
+      box.textContent = p.flavor;
+      return box;
+    }
+    const at = p.flavor.indexOf(s.raw);
+    if (at < 0) {
+      box.textContent = p.flavor;
+      return box;
+    }
+    const before = p.flavor.slice(0, at);
+    const after = p.flavor.slice(at + s.raw.length);
+    if (before) box.appendChild(document.createTextNode(before));
+    const gap = el('button', 'gap', '?');
+    gap.setAttribute('aria-label', `${p.name}의 빈 문장 — 눌러서 문장 맞추기로 채우기`);
+    gap.title = '눌러서 문장 맞추기로 채우기';
+    gap.onclick = () => {
+      window.App.closeOverlay();
+      window.App.playSentence(p.id);
+    };
+    box.appendChild(gap);
+    if (after) box.appendChild(document.createTextNode(after));
+    box.appendChild(el('span', 'gap-note', '빈칸을 누르면 문장 맞추기로 채울 수 있어.'));
+    return box;
+  }
+
   function openDetail(id) {
     const p = Data.get(id);
     if (!p) return;
@@ -258,7 +296,12 @@
     sheet.appendChild(head);
 
     const rows = el('div', 'rows');
-    if (p.flavor) rows.appendChild(row('도감 설명', p.flavor));
+    if (p.flavor) {
+      const box = el('div', 'row');
+      box.appendChild(el('div', 'row-key', '도감 설명'));
+      box.appendChild(flavorValue(p));
+      rows.appendChild(box);
+    }
     rows.appendChild(row('크기', `키 ${p.height.toFixed(1)}m · 몸무게 ${p.weight.toFixed(1)}kg`));
     if (p.abilities && p.abilities.length) {
       rows.appendChild(
@@ -314,8 +357,9 @@
     addStat(`${Save.badgeKeys().length}/${badgeMax}`, '모은 배지');
     addStat(`${Save.lineCount()}/${Data.EVO_LINES}`, '완성한 진화 라인');
     addStat(`${specialCaught()}/${Data.SPECIALS}`, '전설·환상');
-    addStat(Save.sentenceCount(), '읽은 문장');
-    addStat(Save.caughtFrom('book'), '책에서 찾은 포켓몬');
+    const sg = window.Sentence.progress();
+    addStat(`${sg.done}/${sg.total}`, '채운 도감 설명');
+    addStat(Data.rankOf(t.caught).rank.name, '트레이너 등급');
 
     const grid = $('#badge-grid');
     grid.innerHTML = '';

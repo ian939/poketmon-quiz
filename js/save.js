@@ -12,6 +12,7 @@
     escaped: {},    // id -> 도망간 횟수 (다시 출제 대상)
     badges: {},     // "물:gold" -> 획득 시각
     lines: {},      // "line:001" -> 진화 라인을 다 모은 시각
+    stories: {},    // id -> 그 포켓몬의 도감 문장을 완성한 시각
     milestones: [], // 이미 축하한 마일스톤
     ranks: [],      // 이미 축하한 트레이너 등급 (등급 이름)
     stats: {
@@ -44,6 +45,7 @@
         escaped: parsed.escaped || {},
         badges,
         lines: parsed.lines || {},
+        stories: parsed.stories || {},
         milestones: parsed.milestones || [],
         ranks: parsed.ranks || [],
         stats: { ...base.stats, ...(parsed.stats || {}) },
@@ -130,6 +132,16 @@
     lineCount: () => Object.keys(state.lines).length,
 
     /* 문장 조립 기록 */
+    /* 도감 문장 완성 — 포켓몬 한 마리에 하나 */
+    hasStory: (id) => Object.prototype.hasOwnProperty.call(state.stories, id),
+    markStory(id) {
+      if (Save.hasStory(id)) return false;
+      state.stories[id] = Date.now();
+      persist();
+      return true;
+    },
+    storyCount: () => Object.keys(state.stories).length,
+
     addSentence() {
       state.stats.sentences = (state.stats.sentences || 0) + 1;
       persist();

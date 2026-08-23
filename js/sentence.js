@@ -1,10 +1,14 @@
-/* 문장 조립 — 잡은 포켓몬의 도감 설명을 어절 타일로 섞어 순서를 맞춘다.
+/* 문장 맞추기 — 도감 설명에 뚫린 빈칸을 어절 타일로 채운다.
  *
  * 이름 맞히기는 낱말 단위 읽기다. 문장 조립은 조사(을/를·에·는)를 보고
  * 낱말의 역할을 판단해야 풀리므로, 같은 글감으로 한 단계 위의 읽기가 된다.
  *
  * 잡은 포켓몬만 출제한다 — 아는 이야기를 다시 읽으니 복습이 되고,
  * 그림과 이름을 보여 줘도 정답이 새지 않는다.
+ *
+ * 포켓몬 한 마리에 문장 하나가 고정되어 있고(Data.storySentence),
+ * 맞히면 그 포켓몬의 도감 설명이 완성되면서 도감 칸에 ★ 배지가 붙는다.
+ * 그래서 '몇 문장 읽었다'가 아니라 '도감 몇 칸을 채웠다'가 된다.
  */
 (function () {
   'use strict';
@@ -20,18 +24,22 @@
   let busy = false;
 
   /* ---------- 출제 ---------- */
-  /** 잡았고 문장 후보가 있는 포켓몬들 */
+  /** 잡았고 문장이 있는데 아직 안 채운 포켓몬들 */
   function pool() {
-    return Data.all.filter((p) => Save.isCaught(p.id) && Data.hasSentence(p));
+    return Data.all.filter((p) => Save.isCaught(p.id)
+      && Data.storySentence(p) && !Save.hasStory(p.id));
   }
 
-  function pickQuestion() {
-    const list = pool();
-    if (!list.length) return null;
-    const p = list[Math.floor(Math.random() * list.length)];
-    const cands = Data.sentencesFor(p);
-    const s = cands[Math.floor(Math.random() * cands.length)];
-    return { p, sentence: s };
+  /** 잡았고 문장이 있는 포켓몬 전부 — 진행 표시의 분모 */
+  function scope() {
+    return Data.all.filter((p) => Save.isCaught(p.id) && Data.storySentence(p));
+  }
+
+  /** 채운 수 / 채울 수 있는 수 — "3 / 192" */
+  function progress() {
+    const total = scope().length;
+    const done = total - pool().length;
+    return { done, total, left: total - done };
   }
 
   /* ---------- 화면 ---------- */
@@ -41,7 +49,10 @@
     art.src = p.img;
     art.alt = p.name;
     $('#sent-name').textContent = `${p.name}의 이야기`;
-    $('#sent-count').textContent = `${Save.sentenceCount()}문장`;
+    const g = progress();
+    const count = $('#sent-count');
+    count.textContent = `${g.done} / ${g.total}`;
+    count.title = `도감 문장 ${g.done}개 완성 · ${g.left}개 남음`;
 
     const tries = $('#sent-lives');
     tries.innerHTML = '';
@@ -76,6 +87,8 @@
     const box = $('#sent-tiles');
     box.innerHTML = '';
     cur.tiles.forEach((t, i) => {
+      // 처음부터 놓여 있는 첫 낱말 타일은 아예 감춘다 — 눌러도 갈 곳이 없다
+      if (t.fixed) return;
       const btn = el('button', `wtile${t.used ? ' is-used' : ''}`, t.w);
       btn.onclick = () => {
         if (busy || t.used) return;
@@ -131,12 +144,27 @@
   }
 
   function clearInput() {
-    for (let i = 0; i < cur.slots.length; i += 1) {
+    for (let i = cur.given; i < cur.slots.length; i += 1) {
       const tileIndex = cur.fill[i];
       if (tileIndex !== undefined && cur.tiles[tileIndex]) cur.tiles[tileIndex].used = false;
       cur.slots[i] = null;
       delete cur.fill[i];
     }
+  }
+
+  /** 앞에서 n개 어절을 미리 놓아 준다 (첫 낱말은 늘 1개) */
+  function give(n) {
+    for (let i = cur.given; i < n && i < cur.words.length; i += 1) {
+      const w = cur.words[i];
+      const ti = cur.tiles.findIndex((t) => t.w === w && !t.used);
+      if (ti >= 0) {
+        cur.tiles[ti].used = true;
+        if (i === 0) cur.tiles[ti].fixed = true;
+        cur.fill[i] = ti;
+      }
+      cur.slots[i] = w;
+    }
+    cur.given = Math.min(n, cur.words.length);
   }
 
   /* ---------- 판정 ---------- */
@@ -159,22 +187,14 @@
         return;
       }
       clearInput();
-      // 두 번 틀리면 첫 어절을 고정해 준다
-      if (cur.misses >= 2) {
-        cur.given = 1;
-        cur.slots[0] = cur.words[0];
-        const ti = cur.tiles.findIndex((t) => t.w === cur.words[0] && !t.used);
-        if (ti >= 0) {
-          cur.tiles[ti].used = true;
-          cur.fill[0] = ti;
-        }
-      }
+      // 첫 낱말은 이미 놓여 있으니, 두 번 틀리면 둘째 낱말까지 놓아 준다
+      if (cur.misses >= 2) give(2);
       renderHead();
       renderSlots();
       renderTiles();
       busy = false;
       say(cur.misses >= 2
-        ? '첫 낱말을 알려 줄게. 책에 있는 순서로 맞춰 볼까?'
+        ? '둘째 낱말도 놓아 줄게. 책에 있는 순서로 맞춰 볼까?'
         : '책에 있는 순서로 맞춰 볼까?');
     }, 520);
   }
@@ -186,13 +206,15 @@
       s.classList.remove('is-wrong');
       s.classList.add('is-right');
     });
+    // 보상: 이 포켓몬의 도감 설명이 완성되고 도감 칸에 ★ 배지가 붙는다
+    const fresh = Save.markStory(cur.p.id);
     const total = Save.addSentence();
     renderHead();
     say('맞았어! 소리 내어 한 번 읽어 보자.');
 
     setTimeout(() => {
       const cheer = total % CHEER_EVERY === 0;
-      showResult(true, cheer ? total : 0);
+      showResult(true, cheer ? total : 0, fresh);
     }, 1100);
   }
 
@@ -205,28 +227,44 @@
     renderSlots();
     renderTiles();
     say('이게 맞는 순서야. 소리 내어 읽어 보자!');
-    setTimeout(() => showResult(false, 0), 900);
+    setTimeout(() => showResult(false, 0, false), 900);
   }
 
-  function showResult(right, cheerAt) {
+  function showResult(right, cheerAt, fresh) {
     const p = cur.p;
+    const g = progress();
     const sheet = el('div');
-    sheet.appendChild(el('p', 'sheet-eyebrow', right ? '잘했어' : '이번엔 알려 줄게'));
-    sheet.appendChild(el('h2', 'sheet-title', right ? '문장 완성!' : '이런 순서였어'));
+
+    if (right && fresh) {
+      // 새로 얻은 ★ 배지를 크게 한 번 보여 준다
+      const stamp = el('div', 'stamp stamp--story', '★');
+      sheet.appendChild(stamp);
+      sheet.appendChild(el('p', 'sheet-eyebrow', '도감 완성'));
+      sheet.appendChild(el('h2', 'sheet-title', `${p.name} 설명을 채웠다!`));
+    } else {
+      sheet.appendChild(el('p', 'sheet-eyebrow', right ? '잘했어' : '이번엔 알려 줄게'));
+      sheet.appendChild(el('h2', 'sheet-title', right ? '문장 완성!' : '이런 순서였어'));
+    }
 
     const art = el('img', 'sheet-art');
     art.src = p.img;
     art.alt = p.name;
     sheet.appendChild(art);
 
-    sheet.appendChild(el('p', 'sheet-text', `${cur.words.join(' ')}.`));
-    sheet.appendChild(el('p', 'sheet-data', `${p.name} · 읽은 문장 ${Save.sentenceCount()}개`));
+    // 완성했으면 도감 설명 전체를 보여 준다 — 채운 문장이 어디에 들어갔는지 읽는다
+    sheet.appendChild(el('p', 'sheet-text',
+      right && fresh ? p.flavor : `${cur.words.join(' ')}.`));
+
+    sheet.appendChild(el('p', 'sheet-data',
+      right && fresh
+        ? `도감 설명 ${g.done} / ${g.total} 완성 · ${g.left}개 남았어`
+        : `${p.name} · 도감 설명 ${g.done} / ${g.total}`));
 
     const buttons = el('div', 'sheet-buttons');
     const next = el('button', 'btn btn--go', '다음 문장');
     next.onclick = () => {
       window.App.closeOverlay();
-      if (cheerAt) cheer(cheerAt, nextQuestion);
+      if (cheerAt) cheer(cheerAt, () => nextQuestion());
       else nextQuestion();
     };
     const stop = el('button', 'btn', '그만하기');
@@ -239,7 +277,7 @@
     buttons.appendChild(stop);
     sheet.appendChild(buttons);
 
-    window.App.openOverlay(sheet, { sticky: true });
+    window.App.openOverlay(sheet, { sticky: true, variant: right && fresh ? 'gold' : null });
     busy = false;
   }
 
@@ -261,36 +299,47 @@
   }
 
   /* ---------- 문제 시작 ---------- */
-  function nextQuestion() {
-    const q = pickQuestion();
-    if (!q) {
+  /** want: 도감에서 특정 포켓몬의 빈칸을 눌러 들어온 경우 그 포켓몬 */
+  function nextQuestion(want) {
+    const list = pool();
+    if (!list.length) {
       noStock();
       return;
     }
+    const p = (want && list.indexOf(want) >= 0)
+      ? want
+      : list[Math.floor(Math.random() * list.length)];
+    const s = Data.storySentence(p);
+
     cur = {
-      p: q.p,
-      words: q.sentence.words.slice(),
-      slots: new Array(q.sentence.words.length).fill(null),
+      p,
+      words: s.words.slice(),
+      slots: new Array(s.words.length).fill(null),
       fill: {},
-      tiles: shuffle(q.sentence.words).map((w) => ({ w, used: false })),
+      tiles: shuffle(s.words).map((w) => ({ w, used: false, fixed: false })),
       misses: 0,
       given: 0,
     };
+    // 첫 낱말은 늘 놓아 준다 — 문장이 어디서 시작하는지 보이면 나머지를 읽기 쉽다
+    give(1);
     busy = false;
     renderHead();
     renderSlots();
     renderTiles();
-    say('낱말을 순서대로 눌러 문장을 만들어 봐.');
+    say('첫 낱말 뒤를 순서대로 채워 봐.');
     $('#sent-body').scrollTop = 0;
   }
 
-  /** 잡은 포켓몬 중 문장 후보가 없을 때 */
+  /** 채울 문장이 없을 때 — 아직 없는 것과 다 채운 것을 구분해 알려 준다 */
   function noStock() {
+    const g = progress();
+    const allDone = g.total > 0;
     const sheet = el('div');
-    sheet.appendChild(el('h2', 'sheet-title', '아직 이야기가 없어'));
-    sheet.appendChild(
-      el('p', 'sheet-text', '문장 맞추기는 이미 잡은 포켓몬의 이야기로 해.\n포켓몬을 더 잡아 오자!'),
-    );
+    sheet.appendChild(el('h2', 'sheet-title',
+      allDone ? '도감 설명을 다 채웠다!' : '아직 채울 문장이 없어'));
+    sheet.appendChild(el('p', 'sheet-text', allDone
+      ? `잡은 포켓몬 ${g.total}마리의 설명을 모두 채웠어.\n포켓몬을 더 잡으면 새 문장이 생겨!`
+      : '문장 맞추기는 이미 잡은 포켓몬의 도감 설명으로 해.\n포켓몬을 더 잡아 오자!'));
     const buttons = el('div', 'sheet-buttons');
     const go = el('button', 'btn btn--go', '퀴즈 풀러 가기');
     go.onclick = () => {
@@ -303,11 +352,13 @@
   }
 
   window.Sentence = {
-    start() {
-      nextQuestion();
+    /** id: 도감에서 그 포켓몬의 빈칸을 눌러 들어온 경우 */
+    start(id) {
+      nextQuestion(id ? Data.get(id) : null);
     },
     /** 홈에서 '문장 맞추기'를 눌러도 되는 상태인지 */
     ready: () => pool().length > 0,
     poolSize: () => pool().length,
+    progress,
   };
 })();

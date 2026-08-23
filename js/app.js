@@ -17,7 +17,6 @@
     home: '포켓몬 도감 퀴즈',
     quiz: '누구일까',
     sentence: '문장 맞추기',
-    book: '책이랑 찾기',
     dex: '내 도감',
     badge: '배지와 기록',
   };
@@ -207,8 +206,8 @@
     const badgeMax = Data.typeNames.length * Data.BADGE_TIERS.length;
     $('#menu-dex-count').textContent = `${t.caught} / ${t.total}`;
     $('#menu-badge-count').textContent = `배지 ${Save.badgeKeys().length} / ${badgeMax}`;
-    $('#menu-sent-count').textContent = `${Save.sentenceCount()}문장`;
-    $('#menu-book-count').textContent = `${Save.caughtFrom('book')}마리 찾음`;
+    const sg = window.Sentence.progress();
+    $('#menu-sent-count').textContent = `${sg.done} / ${sg.total}`;
     const meta = $('#profile-meta');
     if (meta) meta.textContent = p ? p.name : '';
 
@@ -267,6 +266,13 @@
       return;
     }
     startQuiz(Dex.ALL);
+  }
+
+  /** id를 주면 그 포켓몬의 문장부터 낸다 (도감 빈칸에서 넘어올 때) */
+  function playSentence(id) {
+    clearOverlays();
+    show('sentence');
+    window.Sentence.start(id);
   }
 
   function goHome() {
@@ -362,14 +368,7 @@
       Dex.renderBadges();
       show('badge');
     };
-    $('#btn-sentence').onclick = () => {
-      show('sentence');
-      window.Sentence.start();
-    };
-    $('#btn-book').onclick = () => {
-      show('book');
-      window.Book.start();
-    };
+    $('#btn-sentence').onclick = () => playSentence();
     $('#btn-back').onclick = goHome;
     $('#btn-reset').onclick = confirmReset;
 
@@ -409,7 +408,7 @@
   }
 
   window.App = {
-    show, openOverlay, closeOverlay, replaceOverlay, clearOverlays, goHome, renderHome,
+    show, playSentence, openOverlay, closeOverlay, replaceOverlay, clearOverlays, goHome, renderHome,
   };
 
   bind();

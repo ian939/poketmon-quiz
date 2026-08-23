@@ -896,60 +896,6 @@ body {
   .sent-work { flex: 1 1 auto; min-width: 0; }
 }
 
-/* ---------- 책이랑 찾기 ---------- */
-/* 그림·질문·안내를 세로 가운데로 모은다 */
-#book-body {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-.book-art {
-  flex: 0 0 auto;
-  width: min(48vw, 230px);
-  height: min(48vw, 230px);
-  object-fit: contain;
-  margin: 0 auto;
-}
-/* 쪽수는 이 놀이의 핵심이라 가장 크게 */
-.book-ask {
-  flex: 0 0 auto;
-  margin: 8px 0 6px;
-  text-align: center;
-  font-family: var(--display);
-  font-size: clamp(22px, 5.4vw, 34px);
-  line-height: 1.25;
-  color: var(--ink);
-  word-break: keep-all;
-}
-.book-hint {
-  flex: 0 0 auto;
-  margin: 0;
-  text-align: center;
-  font-family: var(--body);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--vermilion-2);
-  min-height: 24px;
-  word-break: keep-all;
-}
-/* 도망이 없으니 남은 기회 대신 틀린 횟수를 글로 알려 준다 */
-.book-tries {
-  margin-left: auto;
-  font-family: var(--body);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--vermilion-2);
-}
-
-/* 가로 화면: 그림은 왼쪽, 질문은 오른쪽 */
-@media (min-aspect-ratio: 1/1) and (min-width: 760px) {
-  #book-body { flex-direction: row; align-items: center; gap: 24px; }
-  .book-art { width: min(30vw, 280px); height: min(30vw, 280px); }
-  .book-ask, .book-hint { text-align: left; }
-  #book-body > .book-ask { flex: 1 1 auto; }
-}
-
 /* ---------- 도감 ---------- */
 .tabs {
   flex: 0 0 auto;
@@ -994,6 +940,7 @@ body {
 }
 
 .cell {
+  position: relative;
   display: block;
   width: 100%;
   padding: 5px 4px 7px;
@@ -1010,6 +957,25 @@ body {
 .cell.is-special.is-known { background: #fffbec; }
 
 .cell img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+/* 문장 맞추기로 도감 설명을 채운 표시 — 칸 왼쪽 위에 붙는 동그란 배지.
+ * 격자 사이가 8px이므로 -5px 만큼 걸쳐 놓아도 옆 칸을 가리지 않는다. */
+.cell-story {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-family: var(--display);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--marigold);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
 .cell-q {
   display: grid; place-items: center;
   aspect-ratio: 1;
@@ -1053,6 +1019,9 @@ body {
   color: var(--paper);
   background: var(--stamp, var(--edge));
 }
+/* 도감 설명을 채웠을 때의 ★ 도장 — 금색 바탕에는 검은 글씨가 읽힌다 */
+.stamp--story { background: var(--marigold); color: var(--ink); font-size: 24px; }
+
 .badge.is-off .stamp {
   background: transparent;
   color: var(--ink-soft);
@@ -1290,6 +1259,31 @@ body {
   color: var(--vermilion);
 }
 .row-value { font-size: 16px; font-weight: 500; line-height: 1.55; word-break: keep-all; }
+
+/* 도감 설명에 뚫린 빈 문장 — 누르면 문장 맞추기로 간다 */
+.gap {
+  display: inline-block;
+  vertical-align: middle;
+  min-width: 44%;
+  margin: 1px 2px;
+  padding: 2px 12px;
+  font-family: var(--display);
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--vermilion);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+}
+.gap:active { transform: translateY(1px); }
+.gap-note {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vermilion-2);
+}
 
 .evo { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
 .evo-node { width: 60px; text-align: center; font-size: 11px; font-weight: 700; }
