@@ -189,10 +189,10 @@
       cell.appendChild(img);
       cell.appendChild(el('span', 'cell-no', `No.${pad3(p.id)}`));
       cell.appendChild(el('span', 'cell-name', p.name));
-      // 문장 맞추기로 도감 설명을 채운 포켓몬은 왼쪽 위에 ★ 배지가 붙는다
+      // 도감 설명을 채워 '내 포켓몬'이 된 표시 — 왼쪽 위 ★ 배지
       if (Save.hasStory(p.id)) {
         const mark = el('span', 'cell-story', '★');
-        mark.title = '도감 설명을 채웠어';
+        mark.title = '내 포켓몬';
         cell.appendChild(mark);
       }
       cell.onclick = () => openDetail(p.id);
@@ -245,36 +245,45 @@
     return line;
   }
 
+  /** 아직 채울 문장이 남아 있는지 — 이게 있으면 '내 포켓몬'이 아직 아니다 */
+  const hasGap = (p) => !!(p && Data.storySentence(p) && !Save.hasStory(p.id));
+
   /**
-   * 도감 설명 — 아직 안 채운 문장은 빈칸으로 두고, 누르면 문장 맞추기로 보낸다.
-   * 도감이 '읽으면 채워지는 것'이 되어야 빈칸을 채우러 갈 이유가 생긴다.
+   * 도감 설명을 만든다. 아직 안 채운 문장은 '?' 빈칸으로 뚫는다.
+   * 도감이 '채우면 완성되는 것'이어야 빈칸을 채우러 갈 이유가 생긴다.
+   * onGap 을 주면 빈칸이 누를 수 있는 버튼이 되고, 안 주면 보여 주기만 한다
+   * (포획 흐름의 '내 포켓몬으로 만들기' 안내에서는 아래 버튼이 그 일을 한다).
    */
-  function flavorValue(p) {
-    const s = Data.storySentence(p);
+  function flavorNode(p, onGap) {
     const box = el('div', 'row-value');
-    if (!s || Save.hasStory(p.id)) {
-      box.textContent = p.flavor;
-      return box;
-    }
-    const at = p.flavor.indexOf(s.raw);
-    if (at < 0) {
+    const s = Data.storySentence(p);
+    const at = s ? p.flavor.indexOf(s.raw) : -1;
+    if (!hasGap(p) || at < 0) {
       box.textContent = p.flavor;
       return box;
     }
     const before = p.flavor.slice(0, at);
     const after = p.flavor.slice(at + s.raw.length);
     if (before) box.appendChild(document.createTextNode(before));
-    const gap = el('button', 'gap', '?');
-    gap.setAttribute('aria-label', `${p.name}의 빈 문장 — 눌러서 문장 맞추기로 채우기`);
-    gap.title = '눌러서 문장 맞추기로 채우기';
-    gap.onclick = () => {
-      window.App.closeOverlay();
-      window.App.playSentence(p.id);
-    };
+    const gap = onGap ? el('button', 'gap', '?') : el('span', 'gap gap--flat', '?');
+    gap.setAttribute('aria-label', `${p.name}의 빈 문장`);
+    if (onGap) {
+      gap.title = '눌러서 문장을 채우기';
+      gap.onclick = onGap;
+    }
     box.appendChild(gap);
     if (after) box.appendChild(document.createTextNode(after));
-    box.appendChild(el('span', 'gap-note', '빈칸을 누르면 문장 맞추기로 채울 수 있어.'));
+    if (onGap) {
+      box.appendChild(el('span', 'gap-note', '빈칸을 채우면 내 포켓몬이 돼. 눌러 볼까?'));
+    }
     return box;
+  }
+
+  function flavorValue(p) {
+    return flavorNode(p, () => {
+      window.App.closeOverlay();
+      window.App.playSentence(p.id);
+    });
   }
 
   function openDetail(id) {
@@ -358,7 +367,7 @@
     addStat(`${Save.lineCount()}/${Data.EVO_LINES}`, '완성한 진화 라인');
     addStat(`${specialCaught()}/${Data.SPECIALS}`, '전설·환상');
     const sg = window.Sentence.progress();
-    addStat(`${sg.done}/${sg.total}`, '채운 도감 설명');
+    addStat(`${sg.done}/${sg.total}`, '내 포켓몬');
     addStat(Data.rankOf(t.caught).rank.name, '트레이너 등급');
 
     const grid = $('#badge-grid');
@@ -385,6 +394,8 @@
     renderBadges,
     renderMosaic,
     openDetail,
+    flavorNode,
+    hasGap,
     typeProgress,
     totalProgress,
     specialCaught,

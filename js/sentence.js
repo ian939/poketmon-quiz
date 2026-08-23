@@ -7,13 +7,17 @@
  * 그림과 이름을 보여 줘도 정답이 새지 않는다.
  *
  * 포켓몬 한 마리에 문장 하나가 고정되어 있고(Data.storySentence),
- * 맞히면 그 포켓몬의 도감 설명이 완성되면서 도감 칸에 ★ 배지가 붙는다.
- * 그래서 '몇 문장 읽었다'가 아니라 '도감 몇 칸을 채웠다'가 된다.
+ * 맞히면 그 포켓몬의 도감 설명이 완성되면서 '내 포켓몬'이 된다 (도감 칸에 ★ 배지).
+ * 그래서 '몇 문장 읽었다'가 아니라 '내 포켓몬 몇 마리'가 된다.
+ *
+ * 두 가지 방식으로 들어온다:
+ *   - 홈이나 도감 빈칸에서   → 연달아 계속 푼다 (start)
+ *   - 포켓몬을 막 잡은 직후  → 그 한 마리만 풀고 포획 흐름으로 돌아간다 (startOne)
  */
 (function () {
   'use strict';
 
-  const { el, $, $$, shuffle, Sound } = window.U;
+  const { el, $, $$, shuffle, josa, Sound } = window.U;
   const Data = window.Data;
   const Save = window.Save;
 
@@ -22,6 +26,8 @@
 
   let cur = null;   // { p, words, slots, fill, tiles, misses, given }
   let busy = false;
+  // 포획 직후의 '내 포켓몬으로 만들기'. 한 마리만 하고 넘겨 준 일을 한다.
+  let oneShot = null;   // { onFinish }
 
   /* ---------- 출제 ---------- */
   /** 잡았고 문장이 있는데 아직 안 채운 포켓몬들 */
@@ -40,6 +46,13 @@
     const total = scope().length;
     const done = total - pool().length;
     return { done, total, left: total - done };
+  }
+
+  /** 한 마리 모드를 끝내고 포획 흐름으로 돌려보낸다 */
+  function finishOne() {
+    const cb = oneShot && oneShot.onFinish;
+    oneShot = null;
+    if (cb) cb();
   }
 
   /* ---------- 화면 ---------- */
@@ -239,8 +252,9 @@
       // 새로 얻은 ★ 배지를 크게 한 번 보여 준다
       const stamp = el('div', 'stamp stamp--story', '★');
       sheet.appendChild(stamp);
-      sheet.appendChild(el('p', 'sheet-eyebrow', '도감 완성'));
-      sheet.appendChild(el('h2', 'sheet-title', `${p.name} 설명을 채웠다!`));
+      sheet.appendChild(el('p', 'sheet-eyebrow', '내 포켓몬'));
+      sheet.appendChild(el('h2', 'sheet-title',
+        `${josa.i(p.name)}\n내 포켓몬이 됐다!`));
     } else {
       sheet.appendChild(el('p', 'sheet-eyebrow', right ? '잘했어' : '이번엔 알려 줄게'));
       sheet.appendChild(el('h2', 'sheet-title', right ? '문장 완성!' : '이런 순서였어'));
@@ -261,20 +275,31 @@
         : `${p.name} · 도감 설명 ${g.done} / ${g.total}`));
 
     const buttons = el('div', 'sheet-buttons');
-    const next = el('button', 'btn btn--go', '다음 문장');
-    next.onclick = () => {
-      window.App.closeOverlay();
-      if (cheerAt) cheer(cheerAt, () => nextQuestion());
-      else nextQuestion();
-    };
-    const stop = el('button', 'btn', '그만하기');
-    stop.onclick = () => {
-      window.App.closeOverlay();
-      if (cheerAt) cheer(cheerAt, () => window.App.goHome());
-      else window.App.goHome();
-    };
-    buttons.appendChild(next);
-    buttons.appendChild(stop);
+    if (oneShot) {
+      // 포획 흐름 중이라 여기서 이어 풀지 않는다 — 한 마리만 하고 돌아간다
+      const go = el('button', 'btn btn--go', right ? '계속하기' : '다음에 하기');
+      go.onclick = () => {
+        window.App.closeOverlay();
+        if (cheerAt) cheer(cheerAt, finishOne);
+        else finishOne();
+      };
+      buttons.appendChild(go);
+    } else {
+      const next = el('button', 'btn btn--go', '다음 문장');
+      next.onclick = () => {
+        window.App.closeOverlay();
+        if (cheerAt) cheer(cheerAt, () => nextQuestion());
+        else nextQuestion();
+      };
+      const stop = el('button', 'btn', '그만하기');
+      stop.onclick = () => {
+        window.App.closeOverlay();
+        if (cheerAt) cheer(cheerAt, () => window.App.goHome());
+        else window.App.goHome();
+      };
+      buttons.appendChild(next);
+      buttons.appendChild(stop);
+    }
     sheet.appendChild(buttons);
 
     window.App.openOverlay(sheet, { sticky: true, variant: right && fresh ? 'gold' : null });
@@ -299,9 +324,14 @@
   }
 
   /* ---------- 문제 시작 ---------- */
-  /** want: 도감에서 특정 포켓몬의 빈칸을 눌러 들어온 경우 그 포켓몬 */
+  /** want: 도감 빈칸이나 포획 직후처럼 특정 포켓몬이 정해져 들어온 경우 */
   function nextQuestion(want) {
     const list = pool();
+    // 한 마리 모드인데 그 한 마리를 낼 수 없으면 조용히 돌려보낸다
+    if (oneShot && (!want || list.indexOf(want) < 0)) {
+      finishOne();
+      return;
+    }
     if (!list.length) {
       noStock();
       return;
@@ -326,7 +356,16 @@
     renderHead();
     renderSlots();
     renderTiles();
-    say('첫 낱말 뒤를 순서대로 채워 봐.');
+    // 포획 직후에는 '지금은 어려워' 하고 빠져나갈 길을 늘 열어 둔다
+    const later = $('#sent-later');
+    later.classList.toggle('is-hidden', !oneShot);
+    later.onclick = () => {
+      if (busy) return;
+      finishOne();
+    };
+    say(oneShot
+      ? `첫 낱말 뒤를 채우면 ${josa.i(p.name)} 내 포켓몬이 돼!`
+      : '첫 낱말 뒤를 순서대로 채워 봐.');
     $('#sent-body').scrollTop = 0;
   }
 
@@ -354,7 +393,17 @@
   window.Sentence = {
     /** id: 도감에서 그 포켓몬의 빈칸을 눌러 들어온 경우 */
     start(id) {
+      oneShot = null;
       nextQuestion(id ? Data.get(id) : null);
+    },
+    /** 포획 직후 '내 포켓몬으로 만들기' — 이 한 마리만 하고 onFinish 로 돌아간다 */
+    startOne(id, onFinish) {
+      oneShot = { onFinish: onFinish || (() => {}) };
+      nextQuestion(Data.get(id));
+    },
+    /** 화면을 떠나면 한 마리 모드를 버린다 (뒤늦게 포획 흐름이 되살아나지 않게) */
+    leave() {
+      oneShot = null;
     },
     /** 홈에서 '문장 맞추기'를 눌러도 되는 상태인지 */
     ready: () => pool().length > 0,

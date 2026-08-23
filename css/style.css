@@ -296,6 +296,21 @@ body {
 }
 .badgecase.is-empty { border-style: dashed; }
 
+/* 포획 직후 '내 포켓몬으로 만들기'에서 빠져나가는 길 — 지금 어려우면 나중에 */
+.later {
+  display: block;
+  margin: 12px auto 0;
+  padding: 8px 18px;
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: none;
+  border: 3px dashed var(--ink-soft);
+  cursor: pointer;
+}
+.later:active { transform: translateY(2px); }
+
 /* ---------- 다음 힌트 잠금 ----------
  * 도감 설명을 읽을 시간을 벌어 주는 버튼. 잠긴 동안은 남은 초와 함께
  * 막대가 차오르고, 다 차면 눌러서 남은 단서를 펼친다. */
@@ -1079,6 +1094,8 @@ body {
   font-size: 30px;
   font-weight: 400;
   line-height: 1.1;
+  white-space: pre-line;
+  word-break: keep-all;
 }
 .sheet-eyebrow {
   margin: 0 0 4px;
@@ -1293,6 +1310,8 @@ body {
   cursor: pointer;
 }
 .gap:active { transform: translateY(1px); }
+/* 누를 수 없는 빈칸 (보여 주기만 — 아래 버튼이 채우는 일을 한다) */
+.gap--flat { cursor: default; }
 .gap-note {
   display: block;
   margin-top: 6px;

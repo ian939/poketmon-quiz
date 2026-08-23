@@ -6,7 +6,12 @@
  *   진화          이전 모습 → 섬광 → 새 모습 → 등록 카드
  *   전설·환상     금색 등록 카드 + 전용 팡파레
  *
- * 그 뒤에 보상 축하창(배지 · 진화 라인 완성 · 마일스톤)을 하나씩 이어 보여 준다.
+ * 그 뒤에 보상 축하창(배지 · 진화 라인 완성 · 마일스톤)을 하나씩 이어 보여 주고,
+ * 마지막으로 '내 포켓몬으로 만들기'를 권한다 — 도감 설명에 뚫린 빈 문장을
+ * 채우면 그 포켓몬이 내 포켓몬이 된다. 지금 어려우면 '다음에 하기'로 넘긴다.
+ *
+ * 보상 축하창을 이 페이즈보다 먼저 띄우는 것이 중요하다. 문장을 채우다 그만두어도
+ * 배지 축하를 놓치지 않는다.
  */
 (function () {
   'use strict';
@@ -135,10 +140,14 @@
     );
 
     const buttons = el('div', 'sheet-buttons');
-    const next = el('button', 'btn btn--go', o.nextLabel || '다음 포켓몬');
+    // 뒤에 '내 포켓몬으로 만들기'가 이어지면 '다음 포켓몬'은 거짓말이 된다
+    const more = Dex.hasGap(p);
+    const next = el('button', 'btn btn--go',
+      more ? '계속하기' : (o.nextLabel || '다음 포켓몬'));
     next.onclick = () => {
       window.App.closeOverlay();
-      afterRewards(rewards, o.onDone || (() => {}));
+      const done = o.onDone || (() => {});
+      afterRewards(rewards, () => mineOffer(p, done));
     };
     const detail = el('button', 'btn', '자세히 보기');
     detail.onclick = () => Dex.openDetail(p.id);
@@ -156,6 +165,59 @@
     window.App.replaceOverlay(sheet, { sticky: true, variant: special ? 'gold' : null });
     if (special) Sound.legendary();
     else Sound.caught();
+  }
+
+  /* ---------- 마지막 페이즈: 내 포켓몬으로 만들기 ----------
+   * 도감 설명 전체를 보여 주고, 그 안에 뚫린 빈 문장을 가리킨다.
+   * 채울 문장이 없는 포켓몬(230마리)은 이 페이즈를 건너뛴다 — 설명이 이미 온전하다. */
+  function mineOffer(p, done) {
+    if (!Dex.hasGap(p)) {
+      done();
+      return;
+    }
+    // 돌아올 화면을 기억해 둔다 (문장 화면으로 갔다가 여기로 돌아와야 한다)
+    const back = window.App.currentScreen();
+
+    const sheet = el('div');
+    sheet.appendChild(el('p', 'sheet-eyebrow', '마지막 한 걸음'));
+    sheet.appendChild(el('h2', 'sheet-title', `${josa.eul(p.name)}\n내 포켓몬으로!`));
+
+    const art = el('img', 'sheet-art');
+    art.src = p.img;
+    art.alt = p.name;
+    sheet.appendChild(art);
+
+    const rows = el('div', 'rows');
+    const box = el('div', 'row');
+    box.appendChild(el('div', 'row-key', '도감 설명'));
+    box.appendChild(Dex.flavorNode(p, null));
+    rows.appendChild(box);
+    sheet.appendChild(rows);
+
+    sheet.appendChild(
+      el('p', 'sheet-text', '비어 있는 곳을 문장으로 채우면\n내 포켓몬이 돼!'),
+    );
+
+    const buttons = el('div', 'sheet-buttons');
+    const go = el('button', 'btn btn--go', '내 포켓몬으로 만들기');
+    go.onclick = () => {
+      window.App.closeOverlay();
+      window.App.playSentenceOnce(p.id, () => {
+        if (back) window.App.show(back);
+        done();
+      });
+    };
+    const later = el('button', 'btn', '다음에 하기');
+    later.onclick = () => {
+      window.App.closeOverlay();
+      done();
+    };
+    buttons.appendChild(go);
+    buttons.appendChild(later);
+    sheet.appendChild(buttons);
+
+    window.App.openOverlay(sheet, { sticky: true });
+    Sound.unlock();
   }
 
   /* ---------- 보상 축하창을 하나씩 ---------- */
@@ -245,5 +307,5 @@
     return box;
   }
 
-  window.Catch = { play, afterRewards };
+  window.Catch = { play, afterRewards, mineOffer };
 })();

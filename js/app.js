@@ -25,6 +25,8 @@
   function show(name) {
     // 퀴즈를 떠나면 단서 잠금 타이머를 정리한다
     if (name !== 'quiz' && window.Quiz) window.Quiz.leave();
+    // 문장 화면을 떠나면 '내 포켓몬으로 만들기' 한 마리 모드를 버린다
+    if (name !== 'sentence' && window.Sentence) window.Sentence.leave();
     $$('.screen').forEach((s) => s.classList.remove('is-on'));
     const target = $(`#screen-${name}`);
     if (target) target.classList.add('is-on');
@@ -275,6 +277,19 @@
     window.Sentence.start(id);
   }
 
+  /** 포획 직후 '내 포켓몬으로 만들기' — 한 마리만 풀고 onFinish 로 돌아간다 */
+  function playSentenceOnce(id, onFinish) {
+    clearOverlays();
+    show('sentence');
+    window.Sentence.startOne(id, onFinish);
+  }
+
+  /** 지금 켜져 있는 화면 이름 (포획 흐름이 돌아갈 곳을 기억하는 데 쓴다) */
+  function currentScreen() {
+    const on = $('.screen.is-on');
+    return on ? on.id.replace('screen-', '') : null;
+  }
+
   function goHome() {
     clearOverlays();
     // 아직 캐릭터와 이름을 정하지 않았으면 그것부터
@@ -408,7 +423,7 @@
   }
 
   window.App = {
-    show, playSentence, openOverlay, closeOverlay, replaceOverlay, clearOverlays, goHome, renderHome,
+    show, currentScreen, playSentence, playSentenceOnce, openOverlay, closeOverlay, replaceOverlay, clearOverlays, goHome, renderHome,
   };
 
   bind();
