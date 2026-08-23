@@ -24,6 +24,8 @@
 
   /* ---------- 화면 전환 ---------- */
   function show(name) {
+    // 퀴즈를 떠나면 단서 잠금 타이머를 정리한다
+    if (name !== 'quiz' && window.Quiz) window.Quiz.leave();
     $$('.screen').forEach((s) => s.classList.remove('is-on'));
     const target = $(`#screen-${name}`);
     if (target) target.classList.add('is-on');

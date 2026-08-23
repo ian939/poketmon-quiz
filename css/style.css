@@ -279,6 +279,50 @@ body {
 }
 .badgecase.is-empty { border-style: dashed; }
 
+/* ---------- 다음 힌트 잠금 ----------
+ * 도감 설명을 읽을 시간을 벌어 주는 버튼. 잠긴 동안은 남은 초와 함께
+ * 막대가 차오르고, 다 차면 눌러서 남은 단서를 펼친다. */
+.gate {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 12px 14px 10px;
+  font-family: var(--display);
+  font-size: 18px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink-soft);
+  background: var(--paper-2);
+  border: 3px solid var(--ink);
+  border-style: dashed;
+  cursor: default;
+}
+.gate-label { display: block; }
+.gate-bar {
+  display: block;
+  height: 8px;
+  margin-top: 9px;
+  background: var(--paper);
+  border: 2px solid var(--ink-soft);
+  overflow: hidden;
+}
+.gate-bar > b {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink-soft);
+}
+/* 다 읽을 시간이 지나면 눌러도 되는 버튼으로 바뀐다 */
+.gate.is-ready {
+  color: var(--paper);
+  background: var(--jade);
+  border-style: solid;
+  box-shadow: 4px 4px 0 var(--ink);
+  cursor: pointer;
+}
+.gate.is-ready:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.gate.is-ready .gate-bar { display: none; }
+
 /* 칸 하나가 포켓몬 한 마리. 잡으면 그 포켓몬의 타입 색으로 칠해진다. */
 .mosaic {
   display: grid;
@@ -620,6 +664,8 @@ body {
 
 /* ---------- 퀴즈: 단서 행 (책의 색인 행) ---------- */
 .clues { display: grid; gap: 7px; }
+/* 잠금 버튼이 사라진 뒤에도 위 카드와 붙지 않게 */
+#hints-more:not(:empty) { margin-top: 7px; }
 
 .clue {
   display: grid;
@@ -1442,7 +1488,9 @@ body {
     position: sticky; top: 0;
   }
   .rule--tight { grid-column: 2; grid-row: 1; margin-top: 0; }
-  .clues { grid-column: 2; grid-row: 2; }
+  #hints { grid-column: 2; grid-row: 2; }
+  .gate { grid-column: 2; grid-row: 3; }
+  #hints-more { grid-column: 2; grid-row: 4; }
   .clue-text { font-size: 22px; }
   .slot { width: 64px; height: 72px; font-size: 36px; }
   .tile { width: 68px; height: 68px; font-size: 34px; }

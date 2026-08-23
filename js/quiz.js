@@ -14,11 +14,16 @@
   const MAX_TRY = 3;
   const DISTRACTORS = 3;   // 함정 글자 개수
   const MAX_TILES = 9;
+  // 도감 설명을 끝까지 읽을 시간. 설명은 33~75자(중간값 47자)라
+  // 소리 내어 또박또박 읽으면 대략 이만큼 걸린다.
+  const HOLD_MS = 15000;
 
   // chapter === Dex.ALL('전체')이면 802마리 전부에서, 타입 이름이면 그 타입에서 출제
   let chapter = null;
   let cur = null;   // { p, answer, slots, fill, tiles, misses, given }
   let busy = false; // 연출 중 입력 막기
+  let rest = [];    // 아직 안 보여 준 단서들
+  let holdTimer = null;
 
   const chapterLabel = () => (chapter === Dex.ALL ? '전체' : `${chapter} 타입`);
 
@@ -72,18 +77,72 @@
     tries.setAttribute('aria-label', `남은 기회 ${MAX_TRY - cur.misses}번`);
   }
 
+  function clueRow(c, i) {
+    const row = el('div', `clue${c.kind === 'plain' ? '' : ` clue--${c.kind}`}`);
+    // 차례로 나타나게 해서 위에서 아래로 읽도록 유도한다
+    row.style.animationDelay = `${Math.min(i, 8) * 45}ms`;
+    row.appendChild(el('p', 'clue-text', c.text));
+    row.appendChild(el('span', 'clue-tag', c.label));
+    return row;
+  }
+
+  /* 단서는 도감 설명 하나만 먼저 보여 준다.
+   * 전부 한 번에 깔아 놓으면 아이가 도감 설명(가장 긴 글)을 건너뛰고
+   * 아래의 짧은 단서만 훑는다. 15초 동안은 '다음 힌트 확인'을 잠가 두어
+   * 그 사이에 도감을 읽게 하고, 누르면 남은 단서가 한꺼번에 펼쳐진다. */
   function renderClues() {
+    const cards = Data.hintsFor(cur.p);
     const box = $('#hints');
     box.innerHTML = '';
-    Data.hintsFor(cur.p).forEach((c, i) => {
-      const row = el('div', `clue${c.kind === 'plain' ? '' : ` clue--${c.kind}`}`);
-      // 차례로 나타나게 해서 위에서 아래로 읽도록 유도한다
-      row.style.animationDelay = `${Math.min(i, 8) * 45}ms`;
+    $('#hints-more').innerHTML = '';
+    box.appendChild(clueRow(cards[0], 0));
+    rest = cards.slice(1);
+    startHold();
+  }
 
-      row.appendChild(el('p', 'clue-text', c.text));
-      row.appendChild(el('span', 'clue-tag', c.label));
-      box.appendChild(row);
-    });
+  function stopHold() {
+    if (holdTimer) clearInterval(holdTimer);
+    holdTimer = null;
+  }
+
+  function startHold() {
+    stopHold();
+    const gate = $('#hint-gate');
+    if (!rest.length) {
+      gate.classList.add('is-hidden');
+      return;
+    }
+    gate.classList.remove('is-hidden', 'is-ready');
+    gate.disabled = true;
+    const started = Date.now();
+
+    const tick = () => {
+      const left = Math.max(0, HOLD_MS - (Date.now() - started));
+      $('#hint-gate-bar').style.width = `${((1 - left / HOLD_MS) * 100).toFixed(1)}%`;
+      if (left > 0) {
+        $('#hint-gate-label').textContent = `도감을 천천히 읽어 보자 · ${Math.ceil(left / 1000)}초`;
+        return;
+      }
+      stopHold();
+      gate.disabled = false;
+      gate.classList.add('is-ready');
+      $('#hint-gate-label').textContent = '다음 힌트 확인';
+      gate.setAttribute('aria-label', `다음 힌트 ${rest.length}개 보기`);
+      Sound.unlock();
+    };
+    tick();
+    holdTimer = setInterval(tick, 200);
+  }
+
+  /** 남은 단서를 한꺼번에 펼친다 */
+  function revealRest() {
+    stopHold();
+    $('#hint-gate').classList.add('is-hidden');
+    if (!rest.length) return;
+    const more = $('#hints-more');
+    rest.forEach((c, i) => more.appendChild(clueRow(c, i)));
+    rest = [];
+    Sound.tap();
   }
 
   function renderSlots() {
@@ -214,6 +273,8 @@
         return;
       }
       clearInput();
+      // 틀렸으면 도움이 필요한 순간이다 — 남은 단서를 바로 펼쳐 준다
+      revealRest();
       // 두 번 틀리면 첫 글자를 열어 준다
       if (cur.misses >= 2) {
         cur.given = 1;
@@ -238,6 +299,7 @@
 
   function onRight() {
     busy = true;
+    stopHold();
     Sound.correct();
     $$('#slots .slot').forEach((s) => {
       s.classList.remove('is-wrong');
@@ -265,6 +327,7 @@
   }
 
   function onEscaped() {
+    stopHold();
     Sound.escape();
     openPlate();   // 답을 알려 줘야 다음에 맞힐 수 있다
     const p = cur.p;
@@ -409,11 +472,20 @@
     busy = false;
   }
 
+  $('#hint-gate').onclick = () => {
+    if (busy || $('#hint-gate').disabled) return;
+    revealRest();
+  };
+
   window.Quiz = {
     /** chapter: Dex.ALL('전체') 또는 타입 이름 */
     start(c) {
       chapter = c || Dex.ALL;
       nextQuestion();
+    },
+    /** 퀴즈 화면을 떠날 때 — 남은 타이머를 정리한다 */
+    leave() {
+      stopHold();
     },
     get chapter() {
       return chapter;
